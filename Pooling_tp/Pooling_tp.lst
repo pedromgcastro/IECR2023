@@ -1,0 +1,1162 @@
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 1
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+C o m p i l a t i o n
+
+
+   2   
+                Code for of the global optimization algorithm featured in the article submitted to Ind. Eng. Chem. Res. in June 2023.
+                "Global Optimization of QCPs using MIP relaxations with a base-2 logarithmic partitioning scheme"
+       
+                WHATM=    7         BARON
+                          8         GUROBI
+                          9         Mixed-radix MDT algorithm with spatial B&B
+       
+                WHATSBB=  1         LP-based bound contracting in spatial B&B
+                          2         MIP-based bound contracting in spatial B&B
+  14   
+  16   
+  17  SETS
+  18  S         Sources   /S1*S60/
+  19  L         Pools     /L1*L30/
+  20  P         Products  /P1*P40/
+  21  K         Qualities /K1*K20/
+  22  J         Numbers   /0*29/
+  23  KD        Digits   /KD1*KD21/
+  24  IT        Iterations        /IT0*IT100/
+  25  SP        Solutions in pool /file1*file100/
+  26  ND        Nodes for spatial B&B         /ND1*ND20000/
+  27  ACTS(S)   Active sources
+  28  ACTL(L)   Active pools
+  29  ACTP(P)   Active products
+  30  ACTK(K)   Active qualities
+  31  SPOOL(SP) Actual solutions in pool
+  32  ACTJ(J,KD)          Active numbers J in digit KD
+  33  ACTSL(S,L)          Active connections from source S to pool L
+  34  ACTSP(S,P)          Active connections from source S to product P
+  35  ACTLP(L,P)          Active connections from pool L to product P
+  36  ACTKD(KD,L,P)       Active significant digits KD for fraction from pool L to product P
+  37  BNDX(L,P) Bound contract is done for fraction from pool L to product P
+  38  BNDF(S,L) Bound contracting is done for flow from source S to pool L
+  39  BRCHF(S,L)          Flowrate from source S to pool L being branched
+  40  FLOW(S,L) Flows to consider from source S to pool L
+  41  FRAC(L,P) Fractions to consider from pool L to product P
+  42  FIXF(S,L) Range of flow from source S to pool L has been reduced to zero by OBBT
+  43  FIXX(L,P) Range of fraction from pool L to product P has been reduced to zero by OBBT
+  44  CURRENT(ND)         Current node
+  45  SRCNODE(ND)         Nodes search in spatial branch and bound
+  46  NEWNODE(ND)         New node
+  47  WAITING(ND)         Waiting node list
+  48  NODEBRN(ND,ND)      Relation between parent and child nodes
+  49  NEXTF(ND,S,L)       Next flow variable for branching;
+  50   
+  51  ALIAS(KD,KDL,KDLL);;ALIAS(S,SL);ALIAS(L,LL);ALIAS(ND,NDL);
+  52   
+  53  SCALAR    WHATM     What Model                    /8/;
+  54  SCALAR    WHATSBB   What OBBT in SBB              /2/;
+  55  SCALAR    TCPU      Total computational time of algorithm (s)         /3600/;
+  56  SCALAR    CPUOBBT   Remaining computational time in OBBT (s)  /300/;
+  57  SCALAR    CPURELX   Time limit in relaxation for trigerring SBB (s)   /100/;
+  58  SCALAR    TRGGAP    Optimality gap (%)     /0.0001/;
+  59  SCALAR    NDIGITS   Number of digits used in numeric representation
+  60  SCALAR    PARTVAR   Number of partitioned variables
+  61  SCALAR    DISGVAR   Number of disaggregated variables
+  62  SCALAR    BILINTR   Number of bilinear variables
+  63  SCALAR    LBOUND    Lower Bound from original problem
+  64  SCALAR    UBOUND    Upper bound from relaxation problem
+  65  SCALAR    OPTGAP    Optimality gap (%)
+  66  SCALAR    CURIT     Current iteration /1/;
+  67  SCALAR    OBBTCPU   Computational time of OBBT (s)
+  68  SCALAR    MIPCPU    Computational time in Global McCormick or NMDT lower bounding
+  69  SCALAR    TSTART    Time at the start of a certain procedure /0/;
+  70  SCALAR    NBOUNDP   Number of bounding problems
+  71  SCALAR    ESTOBBT   Estimate of OBBT computational time (s)
+  72  SCALAR    ESTRELX   Estimate of relaxation computational time (s)
+  73  SCALAR    SBBOBBT   Number of digits used for performing OBBT in spatial branch and bound /0/;
+  74  SCALAR    SBBRELX   Number of digits used for performing relaxation in spatial branch and bound
+  75  SCALAR    CARDSP    Number of solutions in pool
+  76  SCALAR    CLOOP     Continue loop /1/;
+  77  SCALAR    DONE      Termination of spatial B&B    /0/;
+  78  SCALAR    BISECT    Bisection of variable domain
+  79  SCALAR    FIRST     Controller for loop
+  80  SCALAR    STATUS    Another controller;
+  81   
+  82  PARAMETERS
+  83  BASIS(KD) Basis used in digit KD        /KD1*KD3 2/
+  84  SUPMAX(S) Maximum supply of source S
+  85  CAPMAX(L) Maximum size of pool L
+  86  DEMMIN(P) Minimum demand for product P
+  87  DEMMAX(P) Maximum demand for product P
+  88  PRICE(S)  Unit price of source S
+  89  VALUE(P)  Unit price of product P
+  90  CS(S,K)   Level for source S of quality K
+  91  CMIN(P,K) Lower bound for product P quality K
+  92  CMAX(P,K) Upper bound for product P quality K
+  93  LINKSL(S,L)   Connectivity source S pool L
+  94  LINKSP(S,P)   Connectivity source S product P
+  95  LINKLP(L,P)   Connectivity pool L product P
+  96  XMIN(L,P) Minimum fraction from pool L to product P
+  97  XMAX(L,P) Maximum fraction from pool L to product P
+  98  FSLMIN(S,L)         Minimum flow from source S to pool L
+  99  FSLMAX(S,L)         Maximum flow from source S to pool L
+ 100  CARDK(L,P)          Required number of positions for fraction from pool L to product P
+ 101  KVAL(KD,L,P)        Position of significant digit KD in numerical basis representation for fraction from pool L to product P
+ 102  JVAL(J,KD)          Value to use for number J in digit KD
+ 103  LBF(S,L,ND)         Lower bound for FSL variable from source S to pool L in node ND
+ 104  UBF(S,L,ND)         Upper bound for FSL variable from source S to pool L in node ND
+ 105  LBX(L,P,ND)         Lower bound for X variable from pool L to product P in node ND
+ 106  UBX(L,P,ND)         Lower bound for X variable from pool L to product P in node ND
+ 107  XRNG(L,P,IT)        Range of fraction variables for pool L to product P in iteration IT of OBBT
+ 108  XRR(L,P,IT)         Range reduction of fraction variables for pool L to product P in iteration IT (%)
+ 109  FSLRNG(S,L,IT)      Range of flow variables from source S to pool L in iteration IT of OBBT
+ 110  FSLRR(S,L,IT)       Range reduction of flow variables from source S to pool L in iteration IT (%)
+ 111  NFIXV(IT) Number of fixed variables after OBBT in iteration IT
+ 112  AVERR(IT) Average range reduction in iteration IT
+ 113  LBSP(SP)  Lower bound from solution SP in pool
+ 114  UBSP(SP)  Upper bound from solution SP in pool
+ 115  ERRF(S,L,P)         Error of bilinear term associated to flow from source S through pool L to product P
+ 116  BOUND(ND) Lower bound of node ND
+ 117  LOGBB(ND,*)         Logging information for branch and bound tree
+ 118  LOGIT(ND,*)         Logging information for iterations
+ 119  LOGND(ND,S,L,*)     Logging information for nodes FSL variables
+ 120  LOGND2(ND,L,P,*)    Logging information for nodes X variables;
+ 121   
+ 122  *Change location of Data files
+INCLUDE    C:\Users\Castro\Documents\GAMS files\Aulas\Data Files\PoolingA2.txt
+ 124  #Data file for A2 problem form Alfaki
+ 125  TABLE   CS(S,K)
+ 126               K1          K2          K3          K4          K5          K6          K7          K8          K9         K10         K11         K12
+ 127  S1        18.86       22.83        1.84       22.30       61.77       11.66       12.52       67.07       43.49       59.10       67.17       33.35
+ 128  S2        77.82       77.89       13.26       37.68       22.34        6.71       49.99        2.99       60.95       23.38       46.03       71.49
+ 129  S3        57.06       62.48       76.92       44.10       35.83       17.35       27.55       68.13       72.19       53.61        3.49       66.07
+ 130  S4        48.33       57.07       51.62       21.22       30.17       15.31       17.98       29.37       53.69       23.67       15.42        3.25
+ 131  S5        51.92       27.45       59.29       20.11       20.94       79.50       76.06       68.00       13.44       43.61       72.90       77.59
+ 132  S6         3.93       47.48       68.76       42.30       16.83       45.83       57.07       76.21       23.40       74.19       22.94       58.55
+ 133  S7        74.51       40.98       32.59       13.72       51.42        2.69       49.72        1.19       38.40       19.97       63.07       70.98
+ 134  S8        68.34       26.68       64.22       44.93       50.92       28.19       58.49       24.16       34.30       47.23       48.06       29.43
+ 135  S9        72.98       26.06       73.53       48.44        1.37       23.94       12.55       64.47       34.21       10.80        2.89       53.15
+ 136  S10       49.00       26.74       50.08       11.88       13.60       45.93       19.70       31.11       14.71       10.57       61.01       64.60
+ 137  S11       34.31       42.32       38.86       51.14       33.46       34.07       75.83       60.51       24.08       34.82       75.70       30.54
+ 138  S12       53.43       44.81       36.83       67.89       13.17       21.06       11.51       55.14        2.47       57.38       61.01       41.50
+ 139  S13       74.58       14.12       10.91        7.77       58.52       76.92       15.64       52.56       56.86       48.22       61.94       61.69
+ 140  S14       49.38       69.64       60.17       23.03       17.44       66.83       28.50       73.73       50.66       52.99       42.83        3.88
+ 141  S15       75.05       35.10       55.62       72.50       48.08       12.34        7.84       29.08       42.59       53.51       31.53       40.30
+ 142  S16       38.95       46.80        8.50       51.63       37.06       67.37        6.68       73.24       49.43       26.28       54.05       64.46
+ 143  S17       11.46        6.72       38.25       11.87       78.54       62.68       22.74       69.12       13.39       13.99       29.65       45.73
+ 144  S18       66.09       22.19       30.91       36.50       28.51       21.50        8.26       48.19       21.26       52.10       57.61       48.82
+ 145  S19       32.02        8.83       50.34       53.80       39.94       23.96       66.64       18.61       69.43       79.94        0.91       68.42
+ 146  S20       43.23       66.80       42.46       30.22       18.25       12.59        7.18       63.24        6.02       17.41       63.89       41.14;
+ 147   
+ 148  TABLE   CMIN(P,K)
+ 149               K1          K2          K3          K4          K5          K6          K7          K8          K9         K10         K11         K12
+ 150  P1         6.25        6.88        1.90       16.74        3.44        2.85        4.81       13.74        6.86       10.74        3.72       14.02
+ 151  P2         1.80       14.34        4.65       13.68        4.97        4.77        4.90        2.82        7.30       19.50       16.04        1.20
+ 152  P3         9.87       10.22       15.45       14.84       13.38       11.42       14.04        2.88        1.26        3.03        8.18        2.99
+ 153  P4        14.07        1.53        5.61       19.33       11.04       10.12        8.12       12.33       10.07       13.35       10.36        7.38
+ 154  P5        10.86        6.36        7.72        3.85        2.14       12.49        0.71        8.84       11.62       12.68       16.79        7.55
+ 155  P6         9.73       19.87       19.78       16.40        1.80        5.22        2.36       12.42        0.08       19.24        9.48        6.18
+ 156  P7        10.28        9.17        2.46       12.30        8.74       19.76       10.25       15.48       16.59       11.46       10.13       18.31
+ 157  P8        15.48        9.75       14.33        4.02        6.16        1.92       18.99        1.77       11.73       18.54        9.20        7.98
+ 158  P9         1.82        3.60        0.34        4.35       15.15       10.18       15.11       16.48       13.79        0.27        3.00        6.28
+ 159  P10       14.97        4.85        1.25       12.63        0.13       11.26       11.96       18.22        7.70        1.52       18.67        3.08
+ 160  P11       17.03        2.09        9.50       17.09        7.14       19.01       15.09       13.44        4.19       13.18       13.48        2.52
+ 161  P12        4.57        1.85       16.52       10.09       14.29       18.11        1.20        6.47       15.87       11.54       13.64        3.54
+ 162  P13       17.52        8.24        4.87        6.07        0.40        4.72       17.32       13.23       12.37        0.78        4.36        7.08
+ 163  P14       13.50        5.29        6.66        8.93       11.90        3.97        6.87        3.86       18.93        9.38        5.67       10.48
+ 164  P15       11.17        4.76        9.15        0.63        0.79       19.05        9.96        3.77       16.12       11.97        8.02       18.27;
+ 165   
+ 166  TABLE   CMAX(P,K)
+ 167               K1          K2          K3          K4          K5          K6          K7          K8          K9         K10         K11         K12
+ 168  P1        81.11       34.59       35.71       95.38       45.67       63.84       88.97       64.43       67.38       84.05       20.96       73.47
+ 169  P2        83.60       39.14       39.75       96.71       62.85       39.96       95.03       75.62       31.52       64.09       39.06       29.53
+ 170  P3        55.76       40.87       99.73       44.88       58.37       74.22       84.11       42.10       23.67       62.65       95.62       83.90
+ 171  P4        80.59       77.19       73.06       42.22       22.95       56.97       63.65       26.10       58.58       63.94       77.00       83.25
+ 172  P5        34.95       69.89       83.85       66.89       93.43       36.72       47.00       43.51       29.35       85.12       25.69       33.35
+ 173  P6        37.69       56.26       56.56       21.14       89.79       87.94       38.85       40.10       84.34       83.22       90.40       37.95
+ 174  P7        22.99       99.41       81.03       91.42       20.82       43.94       74.38       68.89       42.20       87.15       38.75       83.80
+ 175  P8        90.65       68.20       57.18       79.84       77.05       77.32       89.49       80.17       52.68       26.80       82.98       24.07
+ 176  P9        56.42       34.30       58.45       66.59       28.91       99.15       55.23       99.10       97.10       97.95       80.20       23.98
+ 177  P10       44.20       46.46       25.40       78.21       70.62       94.91       85.39       92.02       66.89       73.38       46.31       87.09
+ 178  P11       32.06       69.15       95.12       69.34       57.19       71.25       88.34       34.01       78.70       28.35       59.90       43.46
+ 179  P12       20.52       88.54       47.84       62.74       43.13       56.36       67.92       55.93       65.90       29.25       60.42       40.49
+ 180  P13       94.67       38.63       46.71       62.69       64.92       37.55       88.04       59.23       24.41       45.97       34.76       46.46
+ 181  P14       94.68       67.08       37.14       56.30       43.32       83.59       24.25       57.42       28.42       75.81       46.12       71.63
+ 182  P15       49.72       76.07       33.64       80.68       50.67       92.51       94.16       71.65       81.39       25.34       58.12       33.02
+ 183   
+ 184  TABLE LINKSL(S,L)
+ 185              L1          L2          L3          L4          L5          L6          L7          L8          L9         L10
+ 186  S1                                                                                   1                       1
+ 187  S2                                   1                       1           1           1                       1
+ 188  S3                                               1                                                                       1
+ 189  S4                                   1           1                                               1
+ 190  S5                       1                                   1                                                           1
+ 191  S6                       1                       1                       1           1                                   1
+ 192  S7                       1                                               1                       1
+ 193  S8                       1                       1           1                                   1           1
+ 194  S9                                               1                                               1           1           1
+ 195  S10                      1           1           1                                                           1           1
+ 196  S11          1                                               1           1           1                       1           1
+ 197  S12                                              1                       1
+ 198  S13          1           1                                               1           1                                   1
+ 199  S14                                              1           1                                   1           1
+ 200  S15          1                       1           1                                   1                       1
+ 201  S16                                                          1                                   1           1
+ 202  S17                      1           1                                   1                                               1
+ 203  S18                      1                       1           1                       1           1           1
+ 204  S19          1           1           1                       1
+ 205  S20                                  1           1           1                       1           1           1
+ 206   
+ 207  TABLE LINKSP(S,P)
+ 208              P1          P2          P3          P4          P5          P6          P7          P8          P9         P10         P11         P12         P13         P14         P15
+ 209  S1           1                                                                                                                                               1
+ 210  S2                                                                                                                       1                       1                       1
+ 211  S3                                                                                               1
+ 212  S4                                                           1
+ 213  S5                       1                       1                                                                       1           1                                   1
+ 214  S6                                                                                                           1                                                           1
+ 215  S7                                   1           1                                               1
+ 216  S8                                                                                   1                                   1           1                                               1
+ 217  S10                                                          1                                                                                                                       1
+ 218  S11          1                       1           1                                                           1
+ 219  S12                                  1                                                                                   1                       1
+ 220  S13                                                          1
+ 221  S14                                                                      1
+ 222  S15          1                                                                                                                                               1           1
+ 223  S16                                                                                  1                                                           1
+ 224  S17                      1                                                           1           1                                                                                   1
+ 225  S18                                                                                  1                                                                       1
+ 226  S19                      1                       1           1                                                           1                                                           1
+ 227  S20          1                                                           1                                                                       1                                   1;
+ 228   
+ 229  TABLE LINKLP(L,P)
+ 230              P1          P2          P3          P4          P5          P6          P7          P8          P9         P10         P11         P12         P13         P14         P15
+ 231  L1                                                                                                           1                                   1
+ 232  L2                                   1           1                                                           1                       1           1           1
+ 233  L3                                   1           1                       1                       1                       1           1           1           1                       1
+ 234  L4                       1                                   1                       1                                                           1           1                       1
+ 235  L5                                               1                                   1                                               1                       1           1           1
+ 236  L6                                   1           1                                                           1                                                           1
+ 237  L7           1                       1           1           1                                                           1                                   1           1           1
+ 238  L8                       1           1                       1           1           1                                                                                               1
+ 239  L9                                               1           1           1                                               1
+ 240  L10          1           1                                   1           1           1                                               1                       1
+ 241   
+ 242  PARAMETERS
+ 243  SUPMAX(S)       /S1 223,S2 290,S3 55,S4 25,S5 230,S6 76,S7 30,S8 22,S9 208,S10 169,S11 48,S12 83,S13 99,S14 189,S15 7,S16 219,S17 280,S18 276,S19 48,S20 276/
+ 244  CAPMAX(L)       /L1 142,L2 139,L3 183,L4 116,L5 113,L6 74,L7 129,L8 87,L9 92,L10 66/
+ 245  DEMMIN(P)       /P1 0/
+ 246  DEMMAX(P)       /P1 172,P2 33,P3 13,P4 212,P5 285,P6 32,P7 238,P8 255,P9 189,P10 253,P11 71,P12 6,P13 265,P14 141,P15 119/
+ 247  PRICE(S)  /S1 27,S2 40,S3 44,S4 25,S5 31,S6 44,S7 50,S8 25,S9 11,S10 11,S11 26,S12 27,S13 43,S14 14,S15 20,S16 33,S17 40,S18 24,S19 36,S20 27/
+ 248  VALUE(P)  /P1 50,P2 43,P3 46,P4 45,P5 45,P6 46,P7 41,P8 41,P9 47,P10 49,P11 47,P12 45,P13 46,P14 47,P15 46/;
+ 249   
+ 250  ACTS(S)=yes$(SUPMAX(S) GT 0);
+ 251  ACTL(L)=yes$(CAPMAX(L) GT 0);
+ 252  ACTP(P)=yes$(DEMMAX(P) GT 0);
+ 253  ACTK(K)=yes$(SMAX(P$(ACTP(P)),CMAX(P,K)) GT 0);
+ 254  ACTSL(S,L)$(ACTS(S) and ACTL(L))=yes$(LINKSL(S,L) EQ 1);
+ 255  ACTSP(S,P)$(ACTS(S) and ACTP(P))=yes$(LINKSP(S,P) EQ 1);
+ 256  ACTLP(L,P)$(ACTL(L) and ACTP(P))=yes$(LINKLP(L,P) EQ 1);
+ 257  FSLMIN(S,L)$(ACTSL(S,L))=0;
+ 258  FSLMAX(S,L)$(ACTSL(S,L))=MIN(SUPMAX(S),CAPMAX(L));
+ 259  XMIN(L,P)$(ACTLP(L,P))=0;
+ 260  XMAX(L,P)$(ACTLP(L,P))=1;
+ 261  FLOW(ACTSL)=yes;FRAC(ACTLP)=yes;
+ 262  FIXX(FRAC)=no;FIXF(FLOW)=no;
+ 263  XRNG(FRAC,'IT0')=XMAX(FRAC)-XMIN(FRAC);
+ 264  FSLRNG(FLOW,'IT0')=FSLMAX(FLOW)-FSLMIN(FLOW);
+ 265  CURRENT('ND1')=yes;NEWNODE('ND1')=yes;WAITING('ND1')=yes;
+ 266  LBX(FRAC,CURRENT)=XMIN(FRAC);UBX(FRAC,CURRENT)=XMAX(FRAC);
+ 267  LBF(FLOW,CURRENT)=FSLMIN(FLOW);UBF(FLOW,CURRENT)=FSLMAX(FLOW);
+ 268  PARTVAR=card(FRAC);DISGVAR=card(FLOW);BILINTR=SUM((S,L,P)$(ACTSL(S,L) and ACTLP(L,P)),1);
+ 269   
+ 270  display ACTSL,ACTSP,ACTLP,ACTK,FSLMIN,FSLMAX,XMIN,XMAX;
+ 271  Display PARTVAR,DISGVAR,BILINTR;
+ 272   
+ 273  VARIABLES
+ 274  PROFIT,VBOUND;
+ 275   
+ 276  BINARY VARIABLES
+ 277  Y(L,P,J,KD)         Identifies that fraction from pool L to product P has digit J in position KD
+ 278   
+ 279  POSITIVE VARIABLES
+ 280  FSL(S,L)  Flow from source S to pool L
+ 281  FSP(S,P)  Flow from source S going directly to product P
+ 282  FSLP(S,L,P)         Flow from source S through pool L to product P
+ 283  X(L,P)    Split fraction from pool L to product P
+ 284  XR(L,P)   Residual variable related to split fraction from pool L to product P
+ 285  FSLXR(S,L,P)        Residual variable related to flow from source S through pool L to product P
+ 286  FSLDS(S,L,P,J,KD)   Disaggregated flowrate from source S through pool L to product P associated to digit J in position KD
+ 287  LX(L,P)   Discretized variable related to split fraction from pool L to product P
+ 288  LXR(L,P)  Residual variable related to split fraction from pool L to product P
+ 289  LFSLP(S,L,P)        Discretized variable related to flow from source S through pool L to product P
+ 290  LFSLXR(S,L,P)       Residual variable related to flow from source S through pool L to product P
+ 291   
+ 292  EQUATIONS
+ 293  OBJ       Objective function (profit maximization)
+ 294  EQ1(S)    Balance on availability of source S
+ 295  EQ2(L)    Upper bound on size of pool L
+ 296  EQ3(L)    Sum of split fractions out of pool L must be equal to 1
+ 297  EQ4(P)    Supply of product P must exceed its minimum demand
+ 298  EQ5(P)    Supply of product P must not exceed its demand
+ 299  EQ6(P,K)  The level for product P of quality K cannot exceed maximum value
+ 300  EQ7(P,K)  The level for product P of quality K must exceed minimum value
+ 301   
+ 302  OBJLP     Linear objective function (profit maximization)
+ 303  LP4(P)    Linear constraint for ensuring supply of product P must exceed its minimum demand
+ 304  LP5(P)    Linear constraint for ensuring supply of product P must not exceed its demand
+ 305  LP6(P,K)  Linear constraint for ensuring the level for product P of quality K cannot exceed maximum value
+ 306  LP7(P,K)  Linear constraint for ensuring the level for product P of quality K must exceed minimum value
+ 307  LP8(L,P)  Redundant constraint to improve quality of relaxation
+ 308  LP9(S,L)  Redundant constraint to improve quality of relaxation
+ 309  GLMC_1(S,L,P)       Mc Cormick underestimators 1 for flow from source S through pool L to product P
+ 310  GLMC_2(S,L,P)       Mc Cormick underestimators 2 for flow from source S through pool L to product P
+ 311  GLMC_3(S,L,P)       Mc Cormick overestimators 1 for flow from source S through pool L to product P
+ 312  GLMC_4(S,L,P)       Mc Cormick overestimators 2 for flow from source S through pool L to product P
+ 313   
+ 314  NMDT1(L,P)          Relation between split fraction from pool L to product P and its discretized variable
+ 315  NMDT2(S,L,P)        Definition of bilinear term involving flow from S to L and split fraction into P
+ 316  NMDT3(S,L,P)        Relation between bilinear term involving flow from source S through pool L to product P and its residual variable
+ 317  NMDT4(L,P)          Relation between discretized variable of fraction from pool L to product P and its residual variable
+ 318  NMDT5(S,L,P,KD)     Relation between disaggregated flow from source S through pool L to product P and position KD with original FLP variable
+ 319  NMDT6(L,P,KD,J)     Disaggregated flow variable from pool L to product P can only take positive values for position KD value J if the binary has been selected
+ 320  NMDT7(L,P,KD,J)     Disaggregated flow variable from pool L to product P can only take positive values for position KD value J if the binary has been selected
+ 321  NMDT8(L,P,KD)       To compute fraction from pool L to product P exactly one value must be selected for position KD
+ 322  NMDT9(S,L,P)        McCormick relaxation of bilinear term involving flow from source S through pool L to product P and its residual
+ 323  NMDT10(S,L,P)       McCormick relaxation of bilinear term involving flow from source S through pool L to product P and its residual
+ 324  NMDT11(S,L,P)       McCormick relaxation of bilinear term involving flow from source S through pool L to product P and its residual
+ 325  NMDT12(S,L,P)       McCormick relaxation of bilinear term involving flow from source S through pool L to product P and its residual
+ 326   
+ 327  OBJOBBT   Objective function for optimality-based bound tightening
+ 328  OBBTEQ1   Profit must be greater than current lower bound
+ 329  ;
+ 330   
+ 331  OBJ..     PROFIT=e=SUM((S,L,P)$(ACTSL(S,L) and ACTLP(L,P)),(VALUE(P)-PRICE(S))*X(L,P)*FSL(S,L))+SUM((S,P)$(ACTSP(S,P)),(VALUE(P)-PRICE(S))*FSP(S,P));
+ 332  EQ1(S)$(ACTS(S))..  SUM(L$(ACTSL(S,L)),FSL(S,L))+SUM(P$(ACTSP(S,P)),FSP(S,P))=l=SUPMAX(S);
+ 333  EQ2(L)$(ACTL(L))..  SUM(S$(ACTSL(S,L)),FSL(S,L))=l=CAPMAX(L);
+ 334  EQ3(L)$(ACTL(L))..  SUM(P$(ACTLP(L,P)),X(L,P))=e=1;
+ 335  EQ4(P)$(ACTP(P))..  SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),X(L,P)*FSL(S,L))+SUM(S$(ACTSP(S,P)),FSP(S,P))=g=DEMMIN(P);
+ 336  EQ5(P)$(ACTP(P))..  SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),X(L,P)*FSL(S,L))+SUM(S$(ACTSP(S,P)),FSP(S,P))=l=DEMMAX(P);
+ 337  EQ6(P,K)$(ACTP(P) and ACTK(K))..        SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),CS(S,K)*X(L,P)*FSL(S,L))+SUM(S$(ACTSP(S,P)),CS(S,K)*FSP(S,P))=l=(SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),X(L,P)*FSL(S,L))+SUM(S$(ACTSP(S,P)),FSP(S,P)))*CMAX(P,K);
+ 338  EQ7(P,K)$(ACTP(P) and ACTK(K))..        SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),CS(S,K)*X(L,P)*FSL(S,L))+SUM(S$(ACTSP(S,P)),CS(S,K)*FSP(S,P))=g=(SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),X(L,P)*FSL(S,L))+SUM(S$(ACTSP(S,P)),FSP(S,P)))*CMIN(P,K);
+ 339   
+ 340  OBJLP..   PROFIT=e=SUM((S,L,P)$(ACTSL(S,L) and ACTLP(L,P)),(VALUE(P)-PRICE(S))*FSLP(S,L,P))+SUM((S,P)$(ACTSP(S,P)),(VALUE(P)-PRICE(S))*FSP(S,P));
+ 341  LP4(P)$(ACTP(P))..  SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),FSLP(S,L,P))+SUM(S$(ACTSP(S,P)),FSP(S,P))=g=DEMMIN(P);
+ 342  LP5(P)$(ACTP(P))..  SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),FSLP(S,L,P))+SUM(S$(ACTSP(S,P)),FSP(S,P))=l=DEMMAX(P);
+ 343  LP6(P,K)$(ACTP(P) and ACTK(K))..        SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),CS(S,K)*FSLP(S,L,P))+SUM(S$(ACTSP(S,P)),CS(S,K)*FSP(S,P))=l=(SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),FSLP(S,L,P))+SUM(S$(ACTSP(S,P)),FSP(S,P)))*CMAX(P,K);
+ 344  LP7(P,K)$(ACTP(P) and ACTK(K))..        SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),CS(S,K)*FSLP(S,L,P))+SUM(S$(ACTSP(S,P)),CS(S,K)*FSP(S,P))=g=(SUM((S,L)$(ACTSL(S,L) and ACTLP(L,P)),FSLP(S,L,P))+SUM(S$(ACTSP(S,P)),FSP(S,P)))*CMIN(P,K);
+ 345  LP8(L,P)$(ACTLP(L,P))..       SUM(S$(ACTSL(S,L)),FSLP(S,L,P))=l=CAPMAX(L)*X(L,P);
+ 346  LP9(S,L)$(ACTSL(S,L))..       FSL(S,L)=e=SUM(P$(ACTLP(L,P)),FSLP(S,L,P));
+ 347  GLMC_1(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       FSLP(S,L,P)=g=FSL(S,L)*XMIN(L,P)+FSLMIN(S,L)*X(L,P)-FSLMIN(S,L)*XMIN(L,P);
+ 348  GLMC_2(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       FSLP(S,L,P)=g=FSL(S,L)*XMAX(L,P)+FSLMAX(S,L)*X(L,P)-FSLMAX(S,L)*XMAX(L,P);
+ 349  GLMC_3(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       FSLP(S,L,P)=l=FSL(S,L)*XMIN(L,P)+FSLMAX(S,L)*X(L,P)-FSLMAX(S,L)*XMIN(L,P);
+ 350  GLMC_4(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       FSLP(S,L,P)=l=FSL(S,L)*XMAX(L,P)+FSLMIN(S,L)*X(L,P)-FSLMIN(S,L)*XMAX(L,P);
+ 351   
+ 352  NMDT1(L,P)$(ACTLP(L,P))..     X(L,P)=e=XMIN(L,P)+LX(L,P)*(XMAX(L,P)-XMIN(L,P));
+ 353  NMDT2(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..        FSLP(S,L,P)=e=FSL(S,L)*XMIN(L,P)+LFSLP(S,L,P)*(XMAX(L,P)-XMIN(L,P));
+ 354  NMDT3(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..        LFSLP(S,L,P)=e=SUM((J,KD)$(ACTJ(J,KD) and ACTKD(KD,L,P)),FSLDS(S,L,P,J,KD)*JVAL(J,KD)*PROD(KDL$(ord(KDL) LE ord(KD)),1/BASIS(KDL)))+LFSLXR(S,L,P);
+ 355  NMDT4(L,P)$(ACTLP(L,P))..     LX(L,P)=e=SUM((J,KD)$(ACTJ(J,KD) and ACTKD(KD,L,P)),JVAL(J,KD)*Y(L,P,J,KD)*PROD(KDL$(ord(KDL) LE ord(KD)),1/BASIS(KDL)))+LXR(L,P);
+ 356  NMDT5(S,L,P,KD)$(ACTSL(S,L) and ACTKD(KD,L,P))..  FSL(S,L)=e=SUM(J$(ACTJ(J,KD)),FSLDS(S,L,P,J,KD));
+ 357  NMDT6(L,P,KD,J)$(ACTJ(J,KD) and ACTKD(KD,L,P))..  SUM(S$(ACTSL(S,L)),FSLDS(S,L,P,J,KD))=l=SUM(S$(ACTSL(S,L)),FSLMAX(S,L))*Y(L,P,J,KD);
+ 358  NMDT7(L,P,KD,J)$(ACTJ(J,KD) and ACTKD(KD,L,P))..  SUM(S$(ACTSL(S,L)),FSLDS(S,L,P,J,KD))=g=SUM(S$(ACTSL(S,L)),FSLMIN(S,L))*Y(L,P,J,KD);
+ 359  NMDT8(L,P,KD)$(ACTKD(KD,L,P))..         SUM(J$(ACTJ(J,KD)),Y(L,P,J,KD))=e=1;
+ 360  NMDT9(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..        LFSLXR(S,L,P)=l=FSLMAX(S,L)*LXR(L,P);
+ 361  NMDT10(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       LFSLXR(S,L,P)=g=FSLMIN(S,L)*LXR(L,P);
+ 362  NMDT11(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       LFSLXR(S,L,P)=g=(FSL(S,L)-FSLMAX(S,L))*MIN(1,PROD(KD$(ACTKD(KD,L,P)),1/BASIS(KD)))+FSLMAX(S,L)*LXR(L,P);
+ 363  NMDT12(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))..       LFSLXR(S,L,P)=l=(FSL(S,L)-FSLMIN(S,L))*MIN(1,PROD(KD$(ACTKD(KD,L,P)),1/BASIS(KD)))+FSLMIN(S,L)*LXR(L,P);
+ 364   
+ 365  OBJOBBT.. VBOUND=e=SUM((S,L)$(BNDF(S,L)),FSL(S,L))+SUM((L,P)$(BNDX(L,P)),X(L,P));
+ 366  OBBTEQ1.. SUM((S,L,P)$(ACTSL(S,L) and ACTLP(L,P)),(VALUE(P)-PRICE(S))*FSLP(S,L,P))+SUM((S,P)$(ACTSP(S,P)),(VALUE(P)-PRICE(S))*FSP(S,P))=g=LBOUND;
+ 367   
+ 368   
+ 369  X.lo(L,P)$(ACTLP(L,P))=XMIN(L,P);
+ 370  X.up(L,P)$(ACTLP(L,P))=XMAX(L,P);
+ 371  FSL.lo(S,L)$(ACTSL(S,L))=FSLMIN(S,L);
+ 372  FSL.up(S,L)$(ACTSL(S,L))=FSLMAX(S,L);
+ 373   
+ 374   
+ 375  OPTION optcr=1E-6;
+ 376  OPTION limrow=0;
+ 377  OPTION limcol=0;
+ 378  OPTION Solprint=Off;
+ 379  OPTION decimals=6;
+ 380  OPTION threads=0;
+ 381  OPTION reslim=3600;
+ 382  OPTION QCP=GloMIQO;
+ 383  OPTION NLP=CONOPT;
+ 384   
+ 385  MODEL Pooltp using /OBJ,EQ1,EQ2,EQ3,EQ4,EQ5,EQ6,EQ7/;#
+ 386  MODEL PooltpLP using /OBJLP,EQ1,EQ2,EQ3,LP4,LP5,LP6,LP7,LP8,LP9,GLMC_1,GLMC_2,GLMC_3,GLMC_4/; #
+ 387  MODEL MDT using /OBJLP,EQ1,EQ2,EQ3,LP4,LP5,LP6,LP7,LP8,LP9,NMDT1,NMDT2,NMDT3,NMDT4,NMDT5,NMDT6,NMDT7,NMDT8,NMDT9,NMDT10,NMDT11,NMDT12/;
+ 388  MODEL OBBT_LP using /OBJOBBT,OBBTEQ1,EQ1,EQ2,EQ3,LP4,LP5,LP6,LP7,LP8,LP9,GLMC_1,GLMC_2,GLMC_3,GLMC_4/;
+ 389  MODEL OBBT_MDT using /OBJOBBT,OBBTEQ1,EQ1,EQ2,EQ3,LP4,LP5,LP6,LP7,LP8,LP9,NMDT1,NMDT2,NMDT3,NMDT4,NMDT5,NMDT6,NMDT7,NMDT8,NMDT9,NMDT10,NMDT11,NMDT12/;
+ 390   
+ 391  file OptFile /C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\Cplex.op9/; #Directory must match location of Pooling_tp.gms file
+ 392  file Results   /C:\Users\Castro\Documents\My Data Sources\GAMS Output\OBBTPool.txt/;
+ 393  file Search   /C:\Users\Castro\Documents\My Data Sources\GAMS Output\GlobalSearchPool.txt/;
+ 394  file SPoolRes /C:\Users\Castro\Documents\My Data Sources\GAMS Output\SPoolRes.txt/;
+ 395  file fsoln;
+ 396  Results.pw=700;Search.pw=700;SPoolRes.pw=700;
+ 397  Results.pc=6;Search.pc=6;SPoolRes.pc=6; #Separa com tabs os valores das variaveis
+ 398   
+ 399  if(WHATM EQ 7,
+ 400  OPTION NLP=BARON;
+ 401  SOLVE Pooltp using NLP maximizing PROFIT;
+ 402  LBOUND=Pooltp.objval;
+ 403  UBOUND=Pooltp.objest;
+ 404  OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 405  Display FSL.l,FSP.l,X.l,UBOUND,LBOUND,OPTGAP;
+ 406  );
+ 407  if(WHATM EQ 8,
+ 408  OPTION QCP=GUROBI;
+ 409  Pooltp.optfile=2;
+ 410  SOLVE Pooltp using QCP maximizing PROFIT;
+ 411  LBOUND=Pooltp.objval;
+ 412  UBOUND=Pooltp.objest;
+ 413  OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 414  Display FSL.l,FSP.l,X.l,UBOUND,LBOUND,OPTGAP;
+ 415  );
+ 416   
+ 417  BNDF(ACTSL)=no;BNDX(ACTLP)=no;
+ 418   
+ 419  if(WHATM EQ 9,
+ 420  MDT.optcr=1E-7;
+ 421  OBBT_MDT.reslim=60;
+ 422  OBBT_MDT.optcr=1E-5;
+ 423  put Search;
+ 424  put 'CPU','LB','UB','Gap (%)','Method','Intervals'/;
+ 425   
+ 426  #Quick computation of lower and upper bound
+ 427  SOLVE PooltpLP using LP maximizing PROFIT;
+ 428  MIPCPU=MAX(PooltpLP.resusd,0.001);
+ 429  UBOUND=PooltpLP.objval;
+ 430  SOLVE Pooltp using NLP maximizing PROFIT;
+ 431            if(Pooltp.modelstat EQ 2,
+ 432            LBOUND=Pooltp.objval;
+ 433            else
+ 434            LBOUND=-INF;
+ 435            );
+ 436  OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 437  put TimeElapsed,LBOUND:9:3,UBOUND:9:3,OPTGAP:9:5,'Global McCormick' /;
+ 438  putclose Search;Search.ap=1; #Appends text to file instead of overwriting
+ 439  NBOUNDP=2*(PARTVAR+DISGVAR);
+ 440  ESTOBBT=MIPCPU*NBOUNDP;TSTART=TimeElapsed;
+ 441  CLOOP$(OPTGAP LE TRGGAP)=0;
+ 442  #Global McCormick OBBT
+ 443            loop(IT$(CLOOP and ESTOBBT LT CPUOBBT and ord(IT) EQ CURIT+1),
+ 444                      loop(FRAC$(not FIXX(FRAC)),
+ 445                      BNDX(FRAC)=yes;
+ 446                      SOLVE OBBT_LP using LP minimizing VBOUND;
+ 447                      LBX(FRAC,CURRENT)=MIN(VBOUND.l,XMAX(FRAC)); #Avoids numerical errors
+ 448                      XMIN(FRAC)=SUM(CURRENT,LBX(FRAC,CURRENT));X.lo(FRAC)=XMIN(FRAC);
+ 449                      SOLVE OBBT_LP using LP maximizing VBOUND;
+ 450                      UBX(FRAC,CURRENT)=MAX(VBOUND.l,XMIN(FRAC)); #Avoids numerical errors
+ 451                      XMAX(FRAC)=SUM(CURRENT,UBX(FRAC,CURRENT));X.up(FRAC)=XMAX(FRAC);
+ 452                      BNDX(FRAC)=no;
+ 453                      );
+ 454                      loop(FLOW$(not FIXF(FLOW)),
+ 455                      BNDF(FLOW)=yes;
+ 456                      SOLVE OBBT_LP using LP minimizing VBOUND;
+ 457                      LBF(FLOW,CURRENT)=MIN(VBOUND.l,FSLMAX(FLOW)); #Avoids numerical errors
+ 458                      FSLMIN(FLOW)=SUM(CURRENT,LBF(FLOW,CURRENT));FSL.lo(FLOW)=FSLMIN(FLOW);
+ 459                      SOLVE OBBT_LP using LP maximizing VBOUND;
+ 460                      UBF(FLOW,CURRENT)=MAX(VBOUND.l,FSLMIN(FLOW)); #Avoids numerical errors
+ 461                      FSLMAX(FLOW)=SUM(CURRENT,UBF(FLOW,CURRENT));FSL.up(FLOW)=FSLMAX(FLOW);
+ 462                      BNDF(FLOW)=no;
+ 463                      );
+ 464            #Report results of OBBT
+ 465            OBBTCPU=TimeElapsed-TSTART;CPUOBBT=MAX(0,CPUOBBT-OBBTCPU);
+ 466            XRNG(FRAC,IT)=XMAX(FRAC)-XMIN(FRAC);FSLRNG(FLOW,IT)=FSLMAX(FLOW)-FSLMIN(FLOW);
+ 467            XRR(FRAC,IT)=(XRNG(FRAC,'IT0')-XRNG(FRAC,IT))/XRNG(FRAC,'IT0')*100;
+ 468            FSLRR(FLOW,IT)=(FSLRNG(FLOW,'IT0')-FSLRNG(FLOW,IT))/FSLRNG(FLOW,'IT0')*100;
+ 469            AVERR(IT)=(SUM(FRAC,(XRR(FRAC,IT))$(not FIXX(FRAC))+100$(FIXX(FRAC)))+SUM(FLOW,(FSLRR(FLOW,IT))$(not FIXF(FLOW))+100$(FIXF(FLOW))))/(PARTVAR+DISGVAR);
+ 470            FIXX(FRAC)=yes$(XRR(FRAC,IT) GT 99.9999);
+ 471            FIXF(FLOW)=yes$(FSLRR(FLOW,IT) GT 99.9999);
+ 472            NFIXV(IT)=SUM(FRAC$(FIXX(FRAC)),1)+SUM(FLOW$(FIXF(FLOW)),1);
+ 473            NBOUNDP=2*(PARTVAR+DISGVAR-card(FIXX)-card(FIXF));
+ 474            #Recompute Bounds
+ 475            SOLVE PooltpLP using LP maximizing PROFIT;
+ 476            MIPCPU=PooltpLP.resusd;
+ 477            UBOUND=PooltpLP.objval;
+ 478            SOLVE Pooltp using NLP maximizing PROFIT;
+ 479                      if(Pooltp.modelstat EQ 2,
+ 480                                if(Pooltp.objval GT LBOUND*1.0001,
+ 481                                LBOUND=Pooltp.objval;
+ 482                                CURIT=CURIT+1;
+ 483                                );
+ 484                      );
+ 485            OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 486            put TimeElapsed,LBOUND:9:3,UBOUND:9:3,OPTGAP:9:5,'Global McCormick after LP-based OBBT' /;
+ 487            putclose Search;
+ 488            );
+ 489  CLOOP$(OPTGAP LE TRGGAP or TimeElapsed GT TCPU)=0;
+ 490  BASIS(KD)=0;KVAL(KD,L,P)=0;ACTJ(J,KD)=no;JVAL(J,KD)=0;
+ 491  #Relaxation with mixed-radix MDT
+ 492            loop(KDLL$(CLOOP),
+ 493            BASIS(KDLL)=2;
+ 494            NDIGITS=SUM(KD$(BASIS(KD) GT 0),1);
+ 495            CARDK(L,P)$(ACTLP(L,P))=NDIGITS;
+ 496            ACTKD(KD,L,P)$(ACTLP(L,P))=yes$(ord(KD) LE CARDK(L,P));
+ 497            KVAL(KD,L,P)$(ACTKD(KD,L,P))=-BASIS(KD);
+ 498            ACTJ(J,KD)$(ord(KD) LE NDIGITS)=yes$(ord(J) LE BASIS(KD));
+ 499            JVAL(J,KD)$(ACTJ(J,KD))=ord(J)-1;
+ 500            LXR.up(L,P)$(ACTLP(L,P))=MIN(1,PROD(KD$(ACTKD(KD,L,P)),1/BASIS(KD)));
+ 501            put OptFile;
+ 502            put 'tilim ', (TCPU-TimeElapsed):<9:0 /;
+ 503            put 'Solnpool solnpool.gdx' /;
+ 504            put 'SolnPoolPop 1' /;
+ 505            put 'SolnPoolIntensity 1' /;
+ 506            put 'SolnPoolCapacity 10' /;
+ 507            put 'SolnPoolGap 0.01' /;
+ 508            put 'SolnpoolReplace 2' /;
+ 509            putclose OptFile;
+ 510            MDT.optfile=9;
+ 511            SOLVE MDT using MIP maximizing PROFIT;
+ 512            ESTRELX=sqr(MDT.resusd)/MIPCPU;
+ 513            MIPCPU=MDT.resusd;
+ 514            ESTOBBT=MIPCPU*NBOUNDP;
+ 515                      if(MDT.modelstat NE 10 and MDT.modelstat NE 14,
+ 516                      UBOUND=MIN(UBOUND,MDT.objest);
+ 517                      OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 518                      );
+ 519                      if(OPTGAP GT TRGGAP,
+ 520                      #Solution pool to generate multiple starting points for NLP
+ 521                      put SPoolRes;
+ 522                      put 'Solutions from CPLEX pool' /;
+ 523                      put 'File','UB','LB' /;
+ 524                      execute_load 'solnpool.gdx', SPOOL=Index; CARDSP=card(SPOOL);
+ 525                                loop(SPOOL(SP),
+ 526                                put_utility fsoln 'gdxin' / SPOOL.te(SP):0:0;
+ 527                                execute_loadpoint;
+ 528                                UBSP(SP)=PROFIT.l;
+ 529                                put SPoolRes SP.te(SP),UBSP(SP):9:5;
+ 530                                SOLVE Pooltp using NLP maximizing PROFIT;
+ 531                                          if(Pooltp.modelstat EQ 2,
+ 532                                          LBSP(SP)=PROFIT.l; put LBSP(SP):9:5 /;
+ 533                                          LBOUND=MAX(LBOUND,Pooltp.objval);
+ 534                                          else
+ 535                                          put 'Infeasible' /;
+ 536                                          );
+ 537                                );
+ 538                      putclose SPoolRes;
+ 539                      OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 540                      );
+ 541            put Search;
+ 542            put TimeElapsed,LBOUND:9:3,UBOUND:9:3,OPTGAP:9:5,'NMDT Relaxation',(2**NDIGITS):9:0 /;
+ 543            putclose Search;
+ 544            CLOOP$(OPTGAP LE TRGGAP or TimeElapsed GT TCPU or MIPCPU GT CPURELX)=0;
+ 545                      if(CLOOP and ESTOBBT LT CPUOBBT and ESTRELX*NBOUNDP GT CPUOBBT/2,
+ 546                      #NMDT OBBT with current settings
+ 547                      TSTART=TimeElapsed;
+ 548                                loop(FRAC$(not FIXX(FRAC)),
+ 549                                BNDX(FRAC)=yes;
+ 550                                SOLVE OBBT_MDT using MIP minimizing VBOUND;
+ 551                                          if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 552                                          LBX(FRAC,CURRENT)=MIN(OBBT_MDT.objest,XMAX(FRAC)); #Avoids numerical errors
+ 553                                          else
+ 554                                          SOLVE OBBT_LP using LP minimizing VBOUND;
+ 555                                                    if(OBBT_LP.modelstat NE 4,
+ 556                                                    LBX(FRAC,CURRENT)=MIN(VBOUND.l,XMAX(FRAC));
+ 557                                                    );
+ 558                                          );
+ 559                                XMIN(FRAC)=SUM(CURRENT,LBX(FRAC,CURRENT));X.lo(FRAC)=XMIN(FRAC);
+ 560                                SOLVE OBBT_MDT using MIP maximizing VBOUND;
+ 561                                          if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 562                                          UBX(FRAC,CURRENT)=MAX(OBBT_MDT.objest,XMIN(FRAC)); #Avoids numerical errors
+ 563                                          else
+ 564                                          SOLVE OBBT_LP using LP maximizing VBOUND;
+ 565                                                    if(OBBT_LP.modelstat NE 4,
+ 566                                                    UBX(FRAC,CURRENT)=MAX(VBOUND.l,XMIN(FRAC));
+ 567                                                    );
+ 568                                          );
+ 569                                XMAX(FRAC)=SUM(CURRENT,UBX(FRAC,CURRENT));X.up(FRAC)=XMAX(FRAC);
+ 570                                BNDX(FRAC)=no;
+ 571                                );
+ 572                                loop(FLOW$(not FIXF(FLOW)),
+ 573                                BNDF(FLOW)=yes;
+ 574                                SOLVE OBBT_MDT using MIP minimizing VBOUND;
+ 575                                          if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 576                                          LBF(FLOW,CURRENT)=MIN(OBBT_MDT.objest,FSLMAX(FLOW)); #Avoids numerical errors
+ 577                                          else
+ 578                                          SOLVE OBBT_LP using LP minimizing VBOUND;
+ 579                                                    if(OBBT_LP.modelstat NE 4,
+ 580                                                    LBF(FLOW,CURRENT)=MIN(VBOUND.l,FSLMAX(FLOW));
+ 581                                                    );
+ 582                                          );
+ 583                                FSLMIN(FLOW)=SUM(CURRENT,LBF(FLOW,CURRENT));FSL.lo(FLOW)=FSLMIN(FLOW);
+ 584                                SOLVE OBBT_MDT using MIP maximizing VBOUND;
+ 585                                          if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 586                                          UBF(FLOW,CURRENT)=MAX(OBBT_MDT.objest,FSLMIN(FLOW)); #Avoids numerical errors
+ 587                                          else
+ 588                                          SOLVE OBBT_LP using LP maximizing VBOUND;
+ 589                                                    if(OBBT_LP.modelstat NE 4,
+ 590                                                    UBF(FLOW,CURRENT)=MAX(VBOUND.l,FSLMIN(FLOW));
+ 591                                                    );
+ 592                                          );
+ 593                                FSLMAX(FLOW)=SUM(CURRENT,UBF(FLOW,CURRENT));FSL.up(FLOW)=FSLMAX(FLOW);
+ 594                                BNDF(FLOW)=no;
+ 595                                );
+ 596                      #Report results of OBBT
+ 597                      OBBTCPU=TimeElapsed-TSTART;CPUOBBT=MAX(0,CPUOBBT-OBBTCPU);
+ 598                      CURIT=CURIT+1;
+ 599                      XRNG(FRAC,IT)$(ord(IT) EQ CURIT+1)=XMAX(FRAC)-XMIN(FRAC);FSLRNG(FLOW,IT)$(ord(IT) EQ CURIT+1)=FSLMAX(FLOW)-FSLMIN(FLOW);
+ 600                      XRR(FRAC,IT)$(ord(IT) EQ CURIT+1)=(XRNG(FRAC,'IT0')-XRNG(FRAC,IT))/XRNG(FRAC,'IT0')*100;
+ 601                      FSLRR(FLOW,IT)$(ord(IT) EQ CURIT+1)=(FSLRNG(FLOW,'IT0')-FSLRNG(FLOW,IT))/FSLRNG(FLOW,'IT0')*100;
+ 602                      AVERR(IT)$(ord(IT) EQ CURIT+1)=(SUM(FRAC,(XRR(FRAC,IT))$(not FIXX(FRAC))+100$(FIXX(FRAC)))+SUM(FLOW,(FSLRR(FLOW,IT))$(not FIXF(FLOW))+100$(FIXF(FLOW))))/(PARTVAR+DISGVAR);
+ 603                      FIXX(FRAC)=yes$(SUM(IT$(ord(IT) EQ CURIT+1),XRR(FRAC,IT)) GT 99.9999);
+ 604                      FIXF(FLOW)=yes$(SUM(IT$(ord(IT) EQ CURIT+1),FSLRR(FLOW,IT)) GT 99.9999);
+ 605                      NFIXV(IT)$(ord(IT) EQ CURIT+1)=SUM(FRAC$(FIXX(FRAC)),1)+SUM(FLOW$(FIXF(FLOW)),1);
+ 606                      NBOUNDP=2*(PARTVAR+DISGVAR-card(FIXX)-card(FIXF));
+ 607                      #Check if with results from McCormick relaxation we can already stop
+ 608                      SOLVE PooltpLP using LP maximizing PROFIT;
+ 609                      UBOUND=MIN(UBOUND,PooltpLP.objval);
+ 610                      OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 611                      CLOOP$(OPTGAP LE TRGGAP)=0;
+ 612                      put TimeElapsed,LBOUND:9:3,UBOUND:9:3,OPTGAP:9:5,'NMDT OBBT',(2**NDIGITS):9:0 /;
+ 613                      putclose Search;
+ 614                      SBBOBBT=ord(KDLL);
+ 615                      );
+ 616            SBBRELX=ord(KDLL);
+ 617            );
+ 618  WHATSBB$(SBBOBBT EQ 0)=1;
+ 619  #Spatial Branch and Bound
+ 620            if(TimeElapsed LT TCPU and OPTGAP GT TRGGAP,
+ 621            put 'Spatial B&B' /;
+ 622            put 'CPU','LB','UB','Gap (%)','Expl.','Left'/;
+ 623            #Compute the error that will be used to select branching variavel
+ 624            ERRF(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))=ABS(LFSLP.l(S,L,P)-FSL.l(S,L)*LX.l(L,P));
+ 625            BOUND('ND1')=UBOUND;
+ 626            SRCNODE('ND1')=yes;
+ 627            LOGBB('ND1','Time (s)')=TimeElapsed;LOGBB('ND1','Explored')=card(SRCNODE);LOGBB('ND1','Remaining')=card(WAITING);
+ 628            LOGBB('ND1','UBOUND')=UBOUND;LOGBB('ND1','LBOUND')=LBOUND;LOGBB('ND1','OPTGAP (%)')=OPTGAP;
+ 629            LOGND(CURRENT,FLOW,'XLO')=LBF(FLOW,CURRENT);LOGND(CURRENT,FLOW,'XUP')=UBF(FLOW,CURRENT);
+ 630            LOGND2(CURRENT,FRAC,'XLO')=LBX(FRAC,CURRENT);LOGND2(CURRENT,FRAC,'XUP')=UBX(FRAC,CURRENT);
+ 631            put LOGBB('ND1','Time (s)'):9:2, put LOGBB('ND1','LBOUND'):9:3, put LOGBB('ND1','UBOUND'):9:3, put LOGBB('ND1','OPTGAP (%)'):9:5, put LOGBB('ND1','Explored'):9:0 ; put LOGBB('ND1','Remaining'):9:0 /;
+ 632            putclose Search;
+ 633            #Choose branching variavel
+ 634                      loop((S,L)$(ACTSL(S,L) and SMAX(P$(ACTLP(L,P)),ERRF(S,L,P)) EQ SMAX((SL,LL,P)$(ACTSL(SL,LL) and ACTLP(LL,P)),ERRF(SL,LL,P))),
+ 635                      NEXTF(CURRENT,S,L)=yes;
+ 636                      );
+ 637            loop(CURRENT,BRCHF(FLOW)=NEXTF(CURRENT,FLOW););
+ 638            LOGND(CURRENT,BRCHF,'LBOUND')=LBOUND;LOGND(CURRENT,BRCHF,'UBOUND')=UBOUND;LOGND(CURRENT,BRCHF,'Next Src.')=SUM((S,L)$(NEXTF(CURRENT,S,L)),ord(S));LOGND(CURRENT,BRCHF,'Next Pool')=SUM((S,L)$(NEXTF(CURRENT,S,L)),ord(L));
+ 639            #Perform branching
+ 640                      loop(ND$(not DONE), # and ord(ND) LE 1
+ 641                      #Node selection
+ 642                      CURRENT(NDL)=no;
+ 643                      CURRENT(WAITING(NDL))$(BOUND(NDL) EQ UBOUND)=yes;
+ 644                      FIRST=1;
+ 645                                loop(CURRENT$FIRST, #Select only one node for branching
+ 646                                WAITING(CURRENT)=no;
+ 647                                loop(NDL$(CURRENT(NDL)),BRCHF(S,L)=NEXTF(NDL,S,L);); #Assign next variavel to branch
+ 648                                LOGIT(ND,'Node_Sel.')=SUM(NDL$(CURRENT(NDL)),ord(NDL));
+ 649                                LOGIT(ND,'From_Src.')=SUM((S,L)$(BRCHF(S,L)),ord(S));
+ 650                                LOGIT(ND,'To_Pool')=SUM((S,L)$(BRCHF(S,L)),ord(L));
+ 651                                #Branch
+ 652                                          for(BISECT=1 to 2,
+ 653                                          NEWNODE(NDL)=NEWNODE(NDL-1);
+ 654                                          NODEBRN(CURRENT,NEWNODE)=yes;
+ 655                                          SRCNODE(NEWNODE)=yes;
+ 656                                          WAITING(NEWNODE)=yes;
+ 657                                          LBF(FLOW,NEWNODE)=LBF(FLOW,CURRENT);UBF(FLOW,NEWNODE)=UBF(FLOW,CURRENT);
+ 658                                          LBX(FRAC,NEWNODE)=LBX(FRAC,CURRENT);UBX(FRAC,NEWNODE)=UBX(FRAC,CURRENT);
+ 659                                                    if(BISECT EQ 1, #Left branch
+ 660                                                    LBF(BRCHF,NEWNODE)=LBF(BRCHF,CURRENT);
+ 661                                                    UBF(BRCHF,NEWNODE)=LBF(BRCHF,CURRENT)+(UBF(BRCHF,CURRENT)-LBF(BRCHF,CURRENT))/2;
+ 662                                                    else
+ 663                                                    LBF(BRCHF,NEWNODE)=LBF(BRCHF,CURRENT)+(UBF(BRCHF,CURRENT)-LBF(BRCHF,CURRENT))/2;
+ 664                                                    UBF(BRCHF,NEWNODE)=UBF(BRCHF,CURRENT);
+ 665                                                    );
+ 666                                          FSLMIN(FLOW)=SUM(NDL$(NEWNODE(NDL)),LBF(FLOW,NDL));FSLMAX(FLOW)=SUM(NDL$(NEWNODE(NDL)),UBF(FLOW,NDL));
+ 667                                          XMIN(FRAC)=SUM(NDL$(NEWNODE(NDL)),LBX(FRAC,NDL));XMAX(FRAC)=SUM(NDL$(NEWNODE(NDL)),UBX(FRAC,NDL));
+ 668                                          FSL.lo(FLOW)=FSLMIN(FLOW);FSL.up(FLOW)=FSLMAX(FLOW);
+ 669                                          X.lo(FRAC)=XMIN(FRAC);X.up(FRAC)=XMAX(FRAC);
+ 670                                          LOGND(NEWNODE,FLOW,'XLO')=FSL.lo(FLOW);LOGND(NEWNODE,FLOW,'XUP')=FSL.up(FLOW);
+ 671                                          LOGND2(NEWNODE,FRAC,'XLO')=X.lo(FRAC);LOGND2(NEWNODE,FRAC,'XUP')=X.up(FRAC);
+ 672                                          #Bound contract
+ 673                                          STATUS=0;
+ 674                                                    loop(FRAC$(not STATUS and not FIXX(FRAC)),
+ 675                                                    BNDX(FRAC)=yes;
+ 676                                                              if(WHATSBB EQ 1,
+ 677                                                              #LP-based OBBT
+ 678                                                              SOLVE OBBT_LP using LP minimizing VBOUND;
+ 679                                                                        if(OBBT_LP.modelstat EQ 4, #Branch can be fathomed
+ 680                                                                        STATUS=1;
+ 681                                                                        WAITING(NEWNODE)=no;
+ 682                                                                        else
+ 683                                                                        LBX(FRAC,NEWNODE)=MIN(VBOUND.l,XMAX(FRAC)); #Avoids numerical errors
+ 684                                                                        XMIN(FRAC)=SUM(NEWNODE,LBX(FRAC,NEWNODE));X.lo(FRAC)=XMIN(FRAC);
+ 685                                                                        SOLVE OBBT_LP using LP maximizing VBOUND;
+ 686                                                                        UBX(FRAC,NEWNODE)=MAX(VBOUND.l,XMIN(FRAC)); #Avoids numerical errors
+ 687                                                                        XMAX(FRAC)=SUM(NEWNODE,UBX(FRAC,NEWNODE));X.up(FRAC)=XMAX(FRAC);
+ 688                                                                        LOGND2(NEWNODE,FRAC,'XLO')=X.lo(FRAC);LOGND2(NEWNODE,FRAC,'XUP')=X.up(FRAC);
+ 689                                                                        );
+ 690                                                              else
+ 691                                                              #MIP-based OBBT
+ 692                                                              KVAL(KD,L,P)=0;ACTJ(J,KD)=no;JVAL(J,KD)=0;
+ 693                                                              BASIS(KD)=2$(ord(KD) LE SBBOBBT);
+ 694                                                              NDIGITS=SUM(KD$(BASIS(KD) GT 0),1);
+ 695                                                              CARDK(L,P)$(ACTLP(L,P))=NDIGITS;
+ 696                                                              ACTKD(KD,L,P)$(ACTLP(L,P))=yes$(ord(KD) LE CARDK(L,P));
+ 697                                                              KVAL(KD,L,P)$(ACTKD(KD,L,P))=-BASIS(KD);
+ 698                                                              ACTJ(J,KD)$(ord(KD) LE NDIGITS)=yes$(ord(J) LE BASIS(KD));
+ 699                                                              JVAL(J,KD)$(ACTJ(J,KD))=ord(J)-1;
+ 700                                                              LXR.up(L,P)$(ACTLP(L,P))=MIN(1,PROD(KD$(ACTKD(KD,L,P)),1/BASIS(KD)));
+ 701                                                              SOLVE OBBT_MDT using MIP minimizing VBOUND;
+ 702                                                                        if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 703                                                                        LBX(FRAC,NEWNODE)=MIN(OBBT_MDT.objest,XMAX(FRAC)); #Avoids numerical errors
+ 704                                                                        XMIN(FRAC)=SUM(NEWNODE,LBX(FRAC,NEWNODE));X.lo(FRAC)=XMIN(FRAC);
+ 705                                                                        else
+ 706                                                                        SOLVE OBBT_LP using LP minimizing VBOUND;
+ 707                                                                                  if(OBBT_LP.modelstat EQ 4, #Branch can be fathomed
+ 708                                                                                  STATUS=1;
+ 709                                                                                  WAITING(NEWNODE)=no;
+ 710                                                                                  else
+ 711                                                                                  LBX(FRAC,NEWNODE)=MIN(VBOUND.l,XMAX(FRAC)); #Avoids numerical errors
+ 712                                                                                  XMIN(FRAC)=SUM(NEWNODE,LBX(FRAC,NEWNODE));X.lo(FRAC)=XMIN(FRAC);
+ 713                                                                                  );
+ 714                                                                        );
+ 715                                                                        if(not STATUS,
+ 716                                                                        SOLVE OBBT_MDT using MIP maximizing VBOUND;
+ 717                                                                                  if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 718                                                                                  UBX(FRAC,NEWNODE)=MAX(OBBT_MDT.objest,XMIN(FRAC)); #Avoids numerical errors
+ 719                                                                                  XMAX(FRAC)=SUM(NEWNODE,UBX(FRAC,NEWNODE));X.up(FRAC)=XMAX(FRAC);
+ 720                                                                                  LOGND2(NEWNODE,FRAC,'XLO')=X.lo(FRAC);LOGND2(NEWNODE,FRAC,'XUP')=X.up(FRAC);
+ 721                                                                                  else
+ 722                                                                                  SOLVE OBBT_LP using LP maximizing VBOUND;
+ 723                                                                                            if(OBBT_LP.modelstat EQ 4, #Branch can be fathomed
+ 724                                                                                            STATUS=1;
+ 725                                                                                            WAITING(NEWNODE)=no;
+ 726                                                                                            else
+ 727                                                                                            UBX(FRAC,NEWNODE)=MAX(VBOUND.l,XMIN(FRAC)); #Avoids numerical errors
+ 728                                                                                            XMAX(FRAC)=SUM(NEWNODE,UBX(FRAC,NEWNODE));X.up(FRAC)=XMAX(FRAC);
+ 729                                                                                            LOGND2(NEWNODE,FRAC,'XLO')=X.lo(FRAC);LOGND2(NEWNODE,FRAC,'XUP')=X.up(FRAC);
+ 730                                                                                            );
+ 731                                                                                  );
+ 732                                                                        );
+ 733                                                              );
+ 734                                                    BNDX(FRAC)=no;
+ 735                                                    );
+ 736                                                    loop((SL,LL)$(FLOW(SL,LL) and not BRCHF(SL,LL) and not STATUS and not FIXF(SL,LL)),
+ 737                                                    BNDF(SL,LL)=yes;
+ 738                                                              if(WHATSBB EQ 1,
+ 739                                                              #LP-based OBBT
+ 740                                                              SOLVE OBBT_LP using LP minimizing VBOUND;
+ 741                                                                        if(OBBT_LP.modelstat EQ 4, #Branch can be fathomed
+ 742                                                                        STATUS=1;
+ 743                                                                        WAITING(NEWNODE)=no;
+ 744                                                                        else
+ 745                                                                        LBF(SL,LL,NEWNODE)=MIN(VBOUND.l,FSLMAX(SL,LL)); #Avoids numerical errors
+ 746                                                                        FSLMIN(SL,LL)=SUM(NEWNODE,LBF(SL,LL,NEWNODE));FSL.lo(SL,LL)=FSLMIN(SL,LL);
+ 747                                                                        SOLVE OBBT_LP using LP maximizing VBOUND;
+ 748                                                                        UBF(SL,LL,NEWNODE)=MAX(VBOUND.l,FSLMIN(SL,LL)); #Avoids numerical errors
+ 749                                                                        FSLMAX(SL,LL)=SUM(NEWNODE,UBF(SL,LL,NEWNODE));FSL.up(SL,LL)=FSLMAX(SL,LL);
+ 750                                                                        LOGND(NEWNODE,SL,LL,'XLO')=FSL.lo(SL,LL);LOGND(NEWNODE,SL,LL,'XUP')=FSL.up(SL,LL);
+ 751                                                                        );
+ 752                                                              else
+ 753                                                              #MIP-based OBBT
+ 754                                                              SOLVE OBBT_MDT using MIP minimizing VBOUND;
+ 755                                                                        if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 756                                                                        LBF(SL,LL,NEWNODE)=MIN(OBBT_MDT.objest,FSLMAX(SL,LL));
+ 757                                                                        FSLMIN(SL,LL)=SUM(NEWNODE,LBF(SL,LL,NEWNODE));FSL.lo(SL,LL)=FSLMIN(SL,LL);
+ 758                                                                        else
+ 759                                                                        SOLVE OBBT_LP using LP minimizing VBOUND;
+ 760                                                                                  if(OBBT_LP.modelstat EQ 4, #Branch can be fathomed
+ 761                                                                                  STATUS=1;
+ 762                                                                                  WAITING(NEWNODE)=no;
+ 763                                                                                  else
+ 764                                                                                  LBF(SL,LL,NEWNODE)=MIN(VBOUND.l,FSLMAX(SL,LL)); #Avoids numerical errors
+ 765                                                                                  FSLMIN(SL,LL)=SUM(NEWNODE,LBF(SL,LL,NEWNODE));FSL.lo(SL,LL)=FSLMIN(SL,LL);
+ 766                                                                                  );
+ 767                                                                        );
+ 768                                                                        if(not STATUS,
+ 769                                                                        SOLVE OBBT_MDT using MIP maximizing VBOUND;
+ 770                                                                                  if(OBBT_MDT.modelstat NE 10 and OBBT_MDT.modelstat NE 14 and OBBT_MDT.solvestat NE 4,
+ 771                                                                                  UBF(SL,LL,NEWNODE)=MAX(OBBT_MDT.objest,FSLMIN(SL,LL));
+ 772                                                                                  FSLMAX(SL,LL)=SUM(NEWNODE,UBF(SL,LL,NEWNODE));FSL.up(SL,LL)=FSLMAX(SL,LL);
+ 773                                                                                  LOGND(NEWNODE,SL,LL,'XLO')=FSL.lo(SL,LL);LOGND(NEWNODE,SL,LL,'XUP')=FSL.up(SL,LL);
+ 774                                                                                  else
+ 775                                                                                  SOLVE OBBT_LP using LP maximizing VBOUND;
+ 776                                                                                            if(OBBT_LP.modelstat EQ 4, #Branch can be fathomed
+ 777                                                                                            STATUS=1;
+ 778                                                                                            WAITING(NEWNODE)=no;
+ 779                                                                                            else
+ 780                                                                                            UBF(SL,LL,NEWNODE)=MAX(VBOUND.l,FSLMIN(SL,LL)); #Avoids numerical errors
+ 781                                                                                            FSLMAX(SL,LL)=SUM(NEWNODE,UBF(SL,LL,NEWNODE));FSL.up(SL,LL)=FSLMAX(SL,LL);
+ 782                                                                                            LOGND(NEWNODE,SL,LL,'XLO')=FSL.lo(SL,LL);LOGND(NEWNODE,SL,LL,'XUP')=FSL.up(SL,LL);
+ 783                                                                                            );
+ 784                                                                                  );
+ 785                                                                        );
+ 786                                                              );
+ 787                                                    BNDF(SL,LL)=no;
+ 788                                                    );
+ 789                                          #MDT Relaxation
+ 790                                                    if(not STATUS,
+ 791                                                    KVAL(KD,L,P)=0;ACTJ(J,KD)=no;JVAL(J,KD)=0;
+ 792                                                    BASIS(KD)=2$(ord(KD) LE SBBRELX);
+ 793                                                    NDIGITS=SUM(KD$(BASIS(KD) GT 0),1);
+ 794                                                    CARDK(L,P)$(ACTLP(L,P))=NDIGITS;
+ 795                                                    ACTKD(KD,L,P)$(ACTLP(L,P))=yes$(ord(KD) LE CARDK(L,P));
+ 796                                                    KVAL(KD,L,P)$(ACTKD(KD,L,P))=-BASIS(KD);
+ 797                                                    ACTJ(J,KD)$(ord(KD) LE NDIGITS)=yes$(ord(J) LE BASIS(KD));
+ 798                                                    JVAL(J,KD)$(ACTJ(J,KD))=ord(J)-1;
+ 799                                                    LXR.up(L,P)$(ACTLP(L,P))=MIN(1,PROD(KD$(ACTKD(KD,L,P)),1/BASIS(KD)));
+ 800                                                    #No need for solution pool at this stage
+ 801                                                    put OptFile;
+ 802                                                    put 'tilim ', (MAX(0,TCPU-TimeElapsed)):<9:0 /;
+ 803                                                    putclose OptFile;
+ 804                                                    MDT.cutoff=LBOUND;
+ 805                                                    SOLVE MDT using MIP maximizing PROFIT;
+ 806                                                              if(MDT.modelstat EQ 10,BOUND(NEWNODE)=-INF;
+ 807                                                              else BOUND(NEWNODE)=MIN(MDT.objest,BOUND(CURRENT));
+ 808                                                                        if(MDT.modelstat NE 14,
+ 809                                                                        ERRF(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))=ABS(LFSLP.l(S,L,P)-FSL.l(S,L)*LX.l(L,P));
+ 810                                                                        else  #Use LP relaxation to compute the error that will be used to select branching variable
+ 811                                                                        SOLVE PooltpLP using LP maximizing PROFIT;
+ 812                                                                        ERRF(S,L,P)$(ACTSL(S,L) and ACTLP(L,P))=ABS(FSLP.l(S,L,P)-FSL.l(S,L)*X.l(L,P));
+ 813                                                                        );
+ 814                                                              );
+ 815                                                    LOGND(NEWNODE,BRCHF,'UBOUND')=BOUND(NEWNODE);
+ 816                                                              if(SUM(NEWNODE,BOUND(NEWNODE)) LT LBOUND/(1-TRGGAP*0.01),
+ 817                                                              WAITING(NEWNODE)=no; #Fathom node
+ 818                                                              else
+ 819                                                              #Choose branching variavel
+ 820                                                                        loop((S,L)$(ACTSL(S,L) and SMAX(P$(ACTLP(L,P)),ERRF(S,L,P)) EQ SMAX((SL,LL,P)$(ACTSL(SL,LL) and ACTLP(LL,P)),ERRF(SL,LL,P))),
+ 821                                                                        NEXTF(NEWNODE,S,L)=yes;
+ 822                                                                        );
+ 823                                                              LOGND(NEWNODE,BRCHF,'Next Src.')=SUM((S,L)$(NEXTF(NEWNODE,S,L)),ord(S));
+ 824                                                              LOGND(NEWNODE,BRCHF,'Next Pool')=SUM((S,L)$(NEXTF(NEWNODE,S,L)),ord(L));
+ 825                                                              FSL.lo(FLOW)=LBF(FLOW,'ND1');FSL.up(FLOW)=UBF(FLOW,'ND1');
+ 826                                                              SOLVE Pooltp using NLP maximizing PROFIT;
+ 827                                                                        if(Pooltp.modelstat EQ 2,
+ 828                                                                        LOGND(NEWNODE,BRCHF,'LBOUND')=Pooltp.objval;
+ 829                                                                                  if(Pooltp.objval GT LBOUND,
+ 830                                                                                  LBOUND=Pooltp.objval;
+ 831                                                                                            loop(NDL$(WAITING(NDL)), #Eliminate nodes with upper bound lower than improved lower bound
+ 832                                                                                                      if(BOUND(NDL) LT LBOUND/(1-TRGGAP*0.01),WAITING(NDL)=no;);
+ 833                                                                                            );
+ 834                                                                                  );
+ 835                                                                        else
+ 836                                                                        LOGND(NEWNODE,BRCHF,'LBOUND')=LBOUND;
+ 837                                                                        );
+ 838                                                              );
+ 839                                                    else
+ 840                                                    LOGND(NEWNODE,BRCHF,'UBOUND')=-INF;
+ 841                                                    );
+ 842                                          );
+ 843                                FIRST=0;
+ 844                                );
+ 845                      UBOUND=MAX(SMAX(WAITING(NDL),BOUND(NDL)),LBOUND/(1-TRGGAP*0.01));
+ 846                      OPTGAP=ABS((UBOUND-LBOUND)/UBOUND)*100;
+ 847                      LOGBB(ND+1,'Time (s)')=TimeElapsed;LOGBB(ND+1,'Explored')=card(SRCNODE);LOGBB(ND+1,'Remaining')=card(WAITING);
+ 848                      LOGBB(ND+1,'UBOUND')=UBOUND;LOGBB(ND+1,'LBOUND')=LBOUND;LOGBB(ND+1,'OPTGAP (%)')=OPTGAP;
+ 849                      LOGIT(ND,'LBOUND')=LBOUND;
+ 850                      LOGIT(ND,'UBOUND')=UBOUND;
+ 851                      LOGIT(ND,'OPTGAP (%)')=OPTGAP;
+ 852                      LOGIT(ND,'WAITING')=card(WAITING);
+ 853                      LOGIT(ND,'CPUs')=TimeElapsed;
+ 854                      put Search;
+ 855                      put LOGBB(ND+1,'Time (s)'):9:2, put LOGBB(ND+1,'LBOUND'):9:3, put LOGBB(ND+1,'UBOUND'):9:3, put LOGBB(ND+1,'OPTGAP (%)'):9:5, put LOGBB(ND+1,'Explored'):9:0, put LOGBB(ND+1,'Remaining'):9:0 /;
+ 856                      putclose Search;
+ 857                      DONE$(card(WAITING) EQ 0 or OPTGAP LE TRGGAP or TimeElapsed GE TCPU)=1;
+ 858                      );
+ 859            display LOGBB,LOGND,LOGND2,LOGIT,NODEBRN,WAITING;
+ 860            );
+ 861   
+ 862  put Results;
+ 863  put 'OBBT'/;
+ 864  put 'Var.', 'RangeR (%)'/;
+ 865            loop(FRAC,
+ 866            put FRAC.te(FRAC);
+ 867                      loop(IT$(ord(IT) GT 1 and ord(IT) LE CURIT+1),
+ 868                      put XRR(FRAC,IT):8:4;
+ 869                      );
+ 870            put/;
+ 871            );
+ 872            loop(FLOW,
+ 873            put FLOW.te(FLOW);
+ 874                      loop(IT$(ord(IT) GT 1 and ord(IT) LE CURIT+1),
+ 875                      put FSLRR(FLOW,IT):8:4;
+ 876                      );
+ 877            put/;
+ 878            );
+ 879  put 'Fixed V',loop(IT$(ord(IT) GT 1 and ord(IT) LE CURIT+1), put NFIXV(IT);); put/;
+ 880  put 'ARR',loop(IT$(ord(IT) GT 1 and ord(IT) LE CURIT+1), put AVERR(IT);); put/;
+ 881  display NBOUNDP,UBOUND,LBOUND,OPTGAP;
+ 882  );
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 2
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+Include File Summary
+
+
+   SEQ   GLOBAL TYPE      PARENT   LOCAL  FILENAME
+
+     1        1 INPUT          0       0  C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\Pooling_tp.gms
+     2      123 INCLUDE        1     123  .C:\Users\Castro\Documents\GAMS files\Aulas\Data Files\PoolingA2.txt
+
+
+COMPILATION TIME     =        0.016 SECONDS      5 MB  40.4.0 d540b52e WEX-WEI
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 3
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+E x e c u t i o n
+
+
+----    270 SET ACTSL  Active connections from source S to pool L
+
+             L1          L2          L3          L4          L5          L6          L7          L8          L9         L10
+
+S1                                                                                  YES                     YES
+S2                                  YES                     YES         YES         YES                     YES
+S3                                              YES                                                                     YES
+S4                                  YES         YES                                             YES
+S5                      YES                                 YES                                                         YES
+S6                      YES                     YES                     YES         YES                                 YES
+S7                      YES                                             YES                     YES
+S8                      YES                     YES         YES                                 YES         YES
+S9                                              YES                                             YES         YES         YES
+S10                     YES         YES         YES                                                         YES         YES
+S11         YES                                             YES         YES         YES                     YES         YES
+S12                                             YES                     YES
+S13         YES         YES                                             YES         YES                                 YES
+S14                                             YES         YES                                 YES         YES
+S15         YES                     YES         YES                                 YES                     YES
+S16                                                         YES                                 YES         YES
+S17                     YES         YES                                 YES                                             YES
+S18                     YES                     YES         YES                     YES         YES         YES
+S19         YES         YES         YES                     YES
+S20                                 YES         YES         YES                     YES         YES         YES
+
+
+----    270 SET ACTSP  Active connections from source S to product P
+
+             P1          P2          P3          P4          P5          P6          P7          P8          P9         P10         P11         P12         P13         P14         P15
+
+S1          YES                                                                                                                                             YES
+S2                                                                                                                      YES                     YES                     YES
+S3                                                                                              YES
+S4                                                          YES
+S5                      YES                     YES                                                                     YES         YES                                 YES
+S6                                                                                                          YES                                                         YES
+S7                                  YES         YES                                             YES
+S8                                                                                  YES                                 YES         YES                                             YES
+S10                                                         YES                                                                                                                     YES
+S11         YES                     YES         YES                                                         YES
+S12                                 YES                                                                                 YES                     YES
+S13                                                         YES
+S14                                                                     YES
+S15         YES                                                                                                                                             YES         YES
+S16                                                                                 YES                                                         YES
+S17                     YES                                                         YES         YES                                                                                 YES
+S18                                                                                 YES                                                                     YES
+S19                     YES                     YES         YES                                                         YES                                                         YES
+S20         YES                                                         YES                                                                     YES                                 YES
+
+
+----    270 SET ACTLP  Active connections from pool L to product P
+
+             P1          P2          P3          P4          P5          P6          P7          P8          P9         P10         P11         P12         P13         P14         P15
+
+L1                                                                                                          YES                                 YES
+L2                                  YES         YES                                                         YES                     YES         YES         YES
+L3                                  YES         YES                     YES                     YES                     YES         YES         YES         YES                     YES
+L4                      YES                                 YES                     YES                                                         YES         YES                     YES
+L5                                              YES                                 YES                                             YES                     YES         YES         YES
+L6                                  YES         YES                                                         YES                                                         YES
+L7          YES                     YES         YES         YES                                                         YES                                 YES         YES         YES
+L8                      YES         YES                     YES         YES         YES                                                                                             YES
+L9                                              YES         YES         YES                                             YES
+L10         YES         YES                                 YES         YES         YES                                             YES                     YES
+
+
+----    270 SET ACTK  Active qualities
+
+K1 ,    K2 ,    K3 ,    K4 ,    K5 ,    K6 ,    K7 ,    K8 ,    K9 ,    K10,    K11,    K12
+
+
+----    270 PARAMETER FSLMIN  Minimum flow from source S to pool L
+
+                      ( ALL       0.000 )
+
+
+----    270 PARAMETER FSLMAX  Maximum flow from source S to pool L
+
+             L1          L2          L3          L4          L5          L6          L7          L8          L9         L10
+
+S1                                                                              129.000                  92.000
+S2                              183.000                 113.000      74.000     129.000                  92.000
+S3                                           55.000                                                                  55.000
+S4                               25.000      25.000                                          25.000
+S5                  139.000                             113.000                                                      66.000
+S6                   76.000                  76.000                  74.000      76.000                              66.000
+S7                   30.000                                          30.000                  30.000
+S8                   22.000                  22.000      22.000                              22.000      22.000
+S9                                          116.000                                          87.000      92.000      66.000
+S10                 139.000     169.000     116.000                                                      92.000      66.000
+S11      48.000                                          48.000      48.000      48.000                  48.000      48.000
+S12                                          83.000                  74.000
+S13      99.000      99.000                                          74.000      99.000                              66.000
+S14                                         116.000     113.000                              87.000      92.000
+S15       7.000                   7.000       7.000                               7.000                   7.000
+S16                                                     113.000                              87.000      92.000
+S17                 139.000     183.000                              74.000                                          66.000
+S18                 139.000                 116.000     113.000                 129.000      87.000      92.000
+S19      48.000      48.000      48.000                  48.000
+S20                             183.000     116.000     113.000                 129.000      87.000      92.000
+
+
+----    270 PARAMETER XMIN  Minimum fraction from pool L to product P
+
+                      ( ALL       0.000 )
+
+
+----    270 PARAMETER XMAX  Maximum fraction from pool L to product P
+
+             P1          P2          P3          P4          P5          P6          P7          P8          P9         P10         P11         P12         P13         P14         P15
+
+L1                                                                                                        1.000                               1.000
+L2                                1.000       1.000                                                       1.000                   1.000       1.000       1.000
+L3                                1.000       1.000                   1.000                   1.000                   1.000       1.000       1.000       1.000                   1.000
+L4                    1.000                               1.000                   1.000                                                       1.000       1.000                   1.000
+L5                                            1.000                               1.000                                           1.000                   1.000       1.000       1.000
+L6                                1.000       1.000                                                       1.000                                                       1.000
+L7        1.000                   1.000       1.000       1.000                                                       1.000                               1.000       1.000       1.000
+L8                    1.000       1.000                   1.000       1.000       1.000                                                                                           1.000
+L9                                            1.000       1.000       1.000                                           1.000
+L10       1.000       1.000                               1.000       1.000       1.000                                           1.000                   1.000
+
+
+----    271 PARAMETER PARTVAR              =       58.000  Number of partitioned variables
+            PARAMETER DISGVAR              =       82.000  Number of disaggregated variables
+            PARAMETER BILINTR              =      485.000  Number of bilinear variables
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 4
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+Range Statistics    SOLVE Pooltp Using QCP From line 410
+
+
+RANGE STATISTICS (ABSOLUTE NON-ZERO FINITE VALUES)
+
+RHS       [min, max] : [ 1.000E+00, 2.900E+02] - Zero values observed as well
+Bound     [min, max] : [ 1.000E+00, 1.830E+02] - Zero values observed as well
+Matrix    [min, max] : [ 6.000E-02, 9.269E+01] - Zero values observed as well
+
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 5
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+Model Statistics    SOLVE Pooltp Using QCP From line 410
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           8     SINGLE EQUATIONS          431
+BLOCKS OF VARIABLES           4     SINGLE VARIABLES          193
+NON ZERO ELEMENTS        15,937     NON LINEAR N-Z         14,258
+CODE LENGTH              87,060     CONSTANT POOL             637
+
+
+GENERATION TIME      =        0.016 SECONDS      7 MB  40.4.0 d540b52e WEX-WEI
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 6
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+Solution Report     SOLVE Pooltp Using QCP From line 410
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   Pooltp              OBJECTIVE  PROFIT
+     TYPE    QCP                 DIRECTION  MAXIMIZE
+     SOLVER  GUROBI              FROM LINE  410
+
+**** SOLVER STATUS     1 Normal Completion
+**** MODEL STATUS      8 Integer Solution
+**** OBJECTIVE VALUE            23044.1575
+
+ RESOURCE USAGE, LIMIT         20.344      3600.000
+ ITERATION COUNT, LIMIT    125925    2147483647
+ EVALUATION ERRORS             NA             0
+*** This solver runs with a community license.
+Gurobi link license.
+Gurobi library version 9.5.2
+Reading parameter(s) from "C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\gurobi.op2"
+>>  nonconvex 2
+Finished reading from "C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\gurobi.op2"
+--- GMO setup time: 0.00
+QCP status(2): Model was solved to optimality (subject to tolerances).
+
+Best possible:       23044.177615
+Absolute gap:            0.020089
+Relative gap:            0.000001
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+                             0     ERRORS
+GAMS 40.4.0  d540b52e Oct 3, 2022           WEX-WEI x86 64bit/MS Windows - 05/31/23 16:36:31 Page 7
+Global optimization of QCPs arising from the pooling problem (tp-formulation)
+E x e c u t i o n
+
+
+----    414 VARIABLE FSL.L  Flow from source S to pool L
+
+             L2          L3          L4          L5          L6          L7          L8          L9         L10
+
+S1                                                               129.000000               19.223311
+S2                22.539501
+S4                                                                            25.000000
+S5     0.000534
+S6                                                                                                    53.048165
+S8    20.865977
+S9                            94.539425                                                   72.776689
+S10              160.460499                                                                            8.539501
+S11                                                                                                    4.412334
+S12                           21.460575                0.624142
+S14                                       13.234352
+S16                                        2.797890                           18.099489
+S17   61.103425                                       20.375858
+S18   57.030064                           85.250317
+S19                                       11.717441
+
+
+----    414 VARIABLE FSP.L  Flow from source S going directly to product P
+
+             P3          P4          P7         P10         P13         P14         P15
+
+S1                                                    15.813485
+S2                                        24.497907
+S11    5.717441
+S12                                       13.248158
+S15                                                                7.000000
+S17                            9.222419
+S18                                                   12.416297
+S19               36.282559
+S20                                                                           21.343087
+
+
+----    414 VARIABLE X.L  Split fraction from pool L to product P
+
+             P3          P4          P7          P9         P10         P13         P14         P15
+
+L1                                         1.000000
+L2                                                                 1.000000
+L3     0.039795    0.960205                         9.32587E-15
+L4                             0.157153                            0.842847
+L5                                                                             1.000000
+L6                                                                             1.000000
+L7                                                     0.955457                            0.044543
+L8                                                                                         1.000000
+L9                                                     1.000000
+L10                            1.000000
+
+
+----    414 PARAMETER UBOUND               =  2.304418E+4  Upper bound from relaxation problem
+            PARAMETER LBOUND               =  2.304416E+4  Lower Bound from original problem
+            PARAMETER OPTGAP               =     0.000087  Optimality gap (%)
+
+
+EXECUTION TIME       =       20.391 SECONDS      7 MB  40.4.0 d540b52e WEX-WEI
+
+
+USER: Pedro Castro, Single User License              S220303|0002AO-WIN
+      University of Lisbon, Statistics and Operations Research  DC11305
+      License for teaching and research at degree granting institutions
+
+
+**** FILE SUMMARY
+
+Input      C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\Pooling_tp.gms
+Output     C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\Pooling_tp.lst

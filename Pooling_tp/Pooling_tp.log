@@ -1,0 +1,184 @@
+
+--- Job Pooling_tp.gms Start 05/31/23 16:36:31 40.4.0 d540b52e WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\win64\40\gmsprmNT.txt
+    C:\Users\Castro\Documents\GAMS\gamsconfig.yaml
+--- GAMS Parameters defined
+    Input "C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\Pooling_tp.gms"
+    PageSize 0
+    ScrDir "C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\225c\"
+    SysDir C:\GAMS\win64\40\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: Pedro Castro, Single User License              S220303|0002AO-WIN
+          University of Lisbon, Statistics and Operations Research  DC11305
+          C:\Users\Castro\Documents\GAMS\gamslice.txt
+          pmcastro@fc.ul.pt                                                
+Processor information: 1 socket(s), 8 core(s), and 16 thread(s) available
+GAMS 40.4.0   Copyright (C) 1987-2022 GAMS Development. All rights reserved
+--- Starting compilation
+--- Pooling_tp.gms(123) 5 Mb
+--- . PoolingA2.txt(125) 5 Mb
+--- Pooling_tp.gms(757) 5 Mb
+--- Starting execution: elapsed 0:00:00.023
+--- Pooling_tp.gms(407) 6 Mb
+--- Generating QCP model Pooltp
+--- Pooling_tp.gms(410) 9 Mb
+---   431 rows  193 columns  15,937 non-zeroes
+---   87,060 nl-code  14,258 nl-non-zeroes
+--- Range statistics (absolute non-zero finite values)
+--- RHS       [min, max] : [ 1.000E+00, 2.900E+02] - Zero values observed as well
+--- Bound     [min, max] : [ 1.000E+00, 1.830E+02] - Zero values observed as well
+--- Matrix    [min, max] : [ 6.000E-02, 9.269E+01] - Zero values observed as well
+--- Pooling_tp.gms(410) 7 Mb
+--- Executing GUROBI (Solvelink=2): elapsed 0:00:00.044
+
+Gurobi           40.4.0 d540b52e Oct 3, 2022           WEI x86 64bit/MS Window
+
+*** This solver runs with a community license.
+Gurobi link license.
+Set parameter OutputFlag to value 1
+Gurobi library version 9.5.2
+Reading parameter(s) from "C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\gurobi.op2"
+>>  nonconvex 2
+Finished reading from "C:\Users\Castro\Documents\GAMS files\GitHub\Pooling_tp\gurobi.op2"
+Set parameter TimeLimit to value 3600
+Set parameter MIPGap to value 1e-06
+Set parameter MIPGapAbs to value 0
+Set parameter NonConvex to value 2
+Set parameter Threads to value 16
+--- GMO setup time: 0.00
+Set parameter QCPDual to value 1
+Starting Gurobi...
+Gurobi Optimizer version 9.5.2 build v9.5.2rc0 (win64)
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+Optimize a model with 40 rows, 192 columns and 274 nonzeros
+Model fingerprint: 0x89b00e17
+Model has 484 quadratic objective terms
+Model has 390 quadratic constraints
+Coefficient statistics:
+  Matrix range     [1e+00, 1e+00]
+  QMatrix range    [4e-02, 1e+02]
+  QLMatrix range   [6e-02, 9e+01]
+  Objective range  [1e+00, 4e+01]
+  QObjective range [2e+00, 8e+01]
+  Bounds range     [1e+00, 2e+02]
+  RHS range        [1e+00, 3e+02]
+  QRHS range       [6e+00, 3e+02]
+Presolve removed 0 rows and 2 columns
+
+Continuous model is non-convex -- solving as a MIP
+
+Presolve removed 0 rows and 2 columns
+Presolve time: 0.02s
+Presolved: 2256 rows, 676 columns, 14668 nonzeros
+Presolved model has 485 bilinear constraint(s)
+Variable types: 676 continuous, 0 integer (0 binary)
+
+Root relaxation: objective 2.517550e+04, 502 iterations, 0.02 seconds (0.02 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 25175.4959    0  122          - 25175.4959      -     -    0s
+H    0     0                    19766.743258 24939.5601  26.2%     -    0s
+     0     0 23585.3989    0  109 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0   97 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0  113 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0  116 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0   95 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0   98 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0   97 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0  105 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0  105 19766.7433 23585.3989  19.3%     -    0s
+     0     0 23585.3989    0  105 19766.7433 23585.3989  19.3%     -    0s
+     0     2 23585.3989    0  105 19766.7433 23585.3989  19.3%     -    0s
+H   34    48                    20881.352883 23410.6726  12.1%  63.2    0s
+H   39    48                    22029.875016 23410.6726  6.27%  62.2    0s
+H   47    60                    22217.727193 23410.6726  5.37%  59.8    0s
+H  190   173                    22707.881911 23410.6726  3.09%  64.0    0s
+H  191   173                    22767.631317 23410.6726  2.82%  63.8    0s
+H  368   227                    22785.654918 23336.2066  2.42%  51.3    1s
+*  557   314              30    22843.375764 23280.2709  1.91%  43.5    1s
+H  792   443                    22945.736003 23280.2709  1.46%  37.7    1s
+H  814   443                    22962.777559 23280.2709  1.38%  36.7    1s
+H  826   443                    22964.810255 23280.2709  1.37%  36.5    1s
+H  830   443                    22972.604754 23280.2709  1.34%  36.4    1s
+H 1418   760                    23006.870432 23222.9374  0.94%  28.0    1s
+H 1441   760                    23039.737907 23222.9374  0.80%  27.8    1s
+* 2076   858              77    23040.757059 23092.6086  0.23%  23.1    2s
+H 2464   966                    23041.618050 23070.7561  0.13%  21.0    2s
+H 2488   966                    23042.006519 23070.7561  0.12%  20.9    2s
+H 2543   966                    23042.106365 23070.7561  0.12%  20.4    2s
+* 3395   951              74    23042.146826 23053.0740  0.05%  17.2    3s
+* 3601   952              78    23042.191284 23052.0569  0.04%  16.5    3s
+* 3602   952              78    23042.193537 23052.0569  0.04%  16.5    3s
+* 3880   961              53    23042.752962 23052.0569  0.04%  15.6    3s
+H 3977   893                    23043.126440 23052.0569  0.04%  15.3    3s
+H 4036   893                    23043.169538 23052.0569  0.04%  15.2    3s
+H 4102   893                    23043.424332 23052.0569  0.04%  15.0    3s
+* 4672   991              55    23043.498683 23047.9797  0.02%  13.7    4s
+* 4716   991              54    23043.555379 23047.9797  0.02%  13.6    4s
+* 4722   991              55    23043.555605 23047.9797  0.02%  13.6    4s
+* 4763   991              53    23043.566997 23047.9797  0.02%  13.5    4s
+H 5002   906                    23043.808808 23046.1022  0.01%  13.0    4s
+H 5187   906                    23043.894050 23045.5238  0.01%  12.6    4s
+* 5310  1173              59    23043.912121 23045.4550  0.01%  12.4    4s
+* 5370  1173              75    23043.939732 23045.3955  0.01%  12.3    4s
+* 5446  1173              76    23043.955791 23045.2520  0.01%  12.1    4s
+* 5847  1173              54    23043.968980 23045.0421  0.00%  11.5    4s
+* 5864  1173              48    23043.990049 23045.0421  0.00%  11.5    4s
+  6213  1576     cutoff   37      23043.9900 23044.7174  0.00%  11.0    5s
+* 6339  1576              76    23044.014284 23044.6484  0.00%  10.8    5s
+* 6475  1576              63    23044.039865 23044.6051  0.00%  10.6    5s
+* 6912  1576              61    23044.041148 23044.5228  0.00%  10.1    5s
+* 6981  1576              82    23044.054151 23044.4918  0.00%  10.0    5s
+* 6988  1576              82    23044.054674 23044.4918  0.00%  10.0    5s
+* 7078  1576              59    23044.072059 23044.4814  0.00%   9.9    5s
+* 7361  1576              59    23044.087849 23044.4042  0.00%   9.7    5s
+  NLP heuristic elapsed time = 5.02s
+  7691   181 23044.0879   59    0 23044.0878 23044.4042  0.00%   9.4   14s
+  7698   189 23044.4042   13  106 23044.0878 23044.4042  0.00%   9.5   15s
+*11457   262              74    23044.089994 23044.4042  0.00%  10.6   19s
+*11472   262              78    23044.091040 23044.4042  0.00%  10.6   19s
+*11477   262              78    23044.091276 23044.4042  0.00%  10.6   19s
+ 11721   364 23044.1096   74   24 23044.0913 23044.4042  0.00%  10.4   20s
+*11759   364              86    23044.100686 23044.4042  0.00%  10.4   20s
+*11762   364              84    23044.101773 23044.4042  0.00%  10.4   20s
+*11797   364              80    23044.142551 23044.4042  0.00%  10.4   20s
+*11940   364              81    23044.154532 23044.4042  0.00%  10.3   20s
+*12187   270              79    23044.154955 23044.1911  0.00%  10.2   20s
+*12265   270              89    23044.155133 23044.1815  0.00%  10.1   20s
+*12314   270              79    23044.156924 23044.1815  0.00%  10.1   20s
+*12325   270              84    23044.157526 23044.1815  0.00%  10.1   20s
+
+Cutting planes:
+  RLT: 77
+
+Explored 12365 nodes (125925 simplex iterations) in 20.33 seconds (10.96 work units)
+Thread count was 16 (of 16 available processors)
+
+Solution count 10: 23044.2 23044.2 23044.2 ... 23044.1
+
+Optimal solution found (tolerance 1.00e-06)
+Best objective 2.304415752577e+04, best bound 2.304417761495e+04, gap 0.0001%
+
+User-callback calls 25422, time in user-callback 0.03 sec
+QCP status(2): Model was solved to optimality (subject to tolerances).
+
+QCP   Solution:      23044.157526    (125925 iterations, 12365 nodes)
+Best possible:       23044.177615
+Absolute gap:            0.020089
+Relative gap:            0.000001
+
+--- Reading solution for model Pooltp
+***
+*** Solver did not provide marginals for model Pooltp
+***
+--- Executing after solve: elapsed 0:00:20.421
+--- Pooling_tp.gms(419) 7 Mb
+*** Status: Normal completion
+--- Job Pooling_tp.gms Stop 05/31/23 16:36:51 elapsed 0:00:20.421

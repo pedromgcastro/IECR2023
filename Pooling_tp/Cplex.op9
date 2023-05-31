@@ -1,0 +1,7 @@
+tilim 3332
+Solnpool solnpool.gdx
+SolnPoolPop 1
+SolnPoolIntensity 1
+SolnPoolCapacity 10
+SolnPoolGap 0.01
+SolnpoolReplace 2

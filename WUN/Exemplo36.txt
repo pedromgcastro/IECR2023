@@ -1,0 +1,75 @@
+*DADOS DE ENTRADA
+
+
+
+
+NWATS = 3  ;
+
+
+Parameters
+PRICE(k)            Coast of Fresh Water Type k  ;
+
+PRICE('w1') = 1  ;
+PRICE('w2') = 1  ;
+PRICE('w3') = 1  ;
+
+
+
+
+Table CINMAX(i, c) Maximum Inlet Concentration of Contaminant c in Operation i (in ppm)
+        C1      C2      C3      C4      C5
+o1      279     532     86      952     178
+o2      700     827     272     589     619
+o3      400     460     710     514     590
+o4      514     540     328     9       277
+o5      85      541     227     825     111
+o6      900     323     549     213     27
+o7      805     871     101     377     512
+o8      272     46      636     933     413
+o9      233     279     760     516     178
+o10     657     456     278     528     240
+o11     15      543     276     426     432
+o12     742     88      197     341     601
+o13     938     947     249     954     509
+
+
+
+Table COUTMAX(i, c) Maximum Outlet Concentration of Contaminant c in Operation i (in ppm)
+        C1      C2      C3      C4      C5
+o1      1067    646     270     1121    232
+o2      1180    1185    398     1123    1042
+o3      906     978     927     1098    1081
+o4      1113    916     999     990     890
+o5      1169    973     794     924     362
+o6      1010    903     1089    655     203
+o7      940     1181    420     945     628
+o8      1197    609     1107    1057    620
+o9      761     753     948     910     292
+o10     893     849     947     613     440
+o11     810     968     481     771     998
+o12     757     545     785     689     986
+o13     1016    953     473     971     620
+
+
+
+Table COFW(k, c) Concentration of Contaminant c on FreshWater k
+        C1      C2      C3      C4      C5
+w1      3       3       8       8       4
+w2      8       9       10      2       4
+w3      10      0       3       9       8   ;
+
+
+
+Parameters
+FLIM(i) Limiting Flowrate Water in Operation i (in th-1)
+          /   o1  134 ,   o2  74 ,   o3  26 ,   o4  88 ,   o5  100 ,   o6  55 ,   o7  50  ,   o8  126 ,   o9  58   /
+
+
+
+$onempty
+PFIN(i) Parameter for inlet streams (in th-1)
+          /   o10  115 ,   o11  85  ,   o12  95 ,   o13  80   /
+
+
+PFOUT(i) Parameter for outlet streams (in th-1)
+          /   o10  75 ,   o11  95  ,   o12  100 ,   o13  70   /  ;

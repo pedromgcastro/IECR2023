@@ -1,0 +1,87 @@
+*DADOS DE ENTRADA
+
+
+
+
+NWATS = 3  ;
+
+
+Parameters
+PRICE(k)            Coast of Fresh Water Type k  ;
+
+PRICE('w1') = 1  ;
+PRICE('w2') = 1  ;
+PRICE('w3') = 1  ;
+
+
+
+
+Table CINMAX(i, c) Maximum Inlet Concentration of Contaminant c in Operation i (in ppm)
+			C1		C2		C3		C4		C5		C6
+	o1		45		52		189		33		210		24
+	o2		120		30		30		12234		98		656
+	o3		142		420		200		13		637		24
+	o4		20		25		15		25		454		256
+	o5		350		48		260		21		278		12
+	o6		20		50		100		30		70		20
+	o7		45		52		189		33		210		24
+	o8		120		30		30		12234		98		656
+	o9		142		420		200		13		637		24
+	o10		20		25		15		25		454		256
+	o11		350		48		260		21		278		12
+	o12		20		50		100		30		70		20
+	o13		350		48		260		21		278		12
+	o14		20		50		100		30		70		20
+	o15		45		52		189		33		210		24
+	o16		120		30		30		12234		98		656
+	o17		142		420		200		13		637		24
+	o18		20		25		15		25		454		256
+	o19		350		48		260		21		278		12
+	o20		20		50		100		30		70		20
+
+
+Table COUTMAX(i, c) Maximum Outlet Concentration of Contaminant c in Operation i (in ppm)
+			C1		C2		C3		C4		C5		C6
+	o1		139		400		435		37		378		124
+	o2		245		125		85		14728		124		754
+	o3		222		459		567		56		768		58
+	o4		47		367		320		433		589		467
+	o5		850		3560		400		56		436		90
+	o6		100		150		250		90		150		80
+	o7		68		90		230		33		410		150
+	o8		170		130		100		22234		198		1000
+	o9		342		720		400		40		767		700
+	o10		320		60		100		55		1000		800
+	o11		1000		110		360		60		678		50
+	o12		120		150		400		115		170		75
+	o13		850		3560		400		56		436		90
+	o14		100		150		250		90		150		80
+	o15		68		90		230		33		410		150
+	o16		170		130		100		22234		198		1000
+	o17		342		720		400		40		767		700
+	o18		320		60		100		55		1000		800
+	o19		1000		110		360		60		678		50
+	o20		120		150		400		115		170		75
+
+
+Table COFW(k, c) Concentration of Contaminant c on FreshWater k
+			C1		C2		C3		C4		C5		C6				
+	w1		3		5		0		8		3		0
+	w2		0		3		2		7		5		0
+	w3		4		1		2		3   		4		0	;		
+
+
+
+Parameters
+FLIM(i) Limiting Flowrate Water in Operation i (in th-1)
+          /   o1  134 ,   o2  74 ,   o3  26 ,   o4  88 ,   o5  100 ,   o6  55 ,   o7  50 ,   o8  26 ,   o9  98 ,   o10  115 ,   o11  85 ,   o12  95 ,   o13  100 ,   o14  45    /
+
+
+
+$onempty
+PFIN(i) Parameter for inlet streams (in th-1)
+          /   O15  100 ,  o16  185 ,   o17  95 ,   o18  100 ,   o19  75 ,   O20  80  /
+
+
+PFOUT(i) Parameter for outlet streams (in th-1)
+          /   O15  80 ,  o16  200 ,   o17  65 ,   o18  50 ,   o19  95 ,   O20  70  /  ;

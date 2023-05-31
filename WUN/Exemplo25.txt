@@ -1,0 +1,65 @@
+*DADOS DE ENTRADA
+
+
+
+
+NWATS = 4  ;
+
+
+Parameters
+PRICE(k)         	Coast of Fresh Water Type k  ;
+
+PRICE('w1') = 1  ;
+PRICE('w2') = 1  ;
+PRICE('w3') = 1  ;
+PRICE('w4') = 1  ;
+
+
+
+
+Table CINMAX(i, c) Maximum Inlet Concentration of Contaminant c in Operation i (in ppm)
+	C1	C2	C3
+o1	857	479	781
+o2	71	990	998
+o3	650	759	54
+o4	905	120	452
+o5	366	169	169
+o6	242	652	92
+o7	618	134	744
+
+
+
+Table COUTMAX(i, c) Maximum Outlet Concentration of Contaminant c in Operation i (in ppm)
+	C1	C2	C3
+o1	870	540	798
+o2	658	1176	1010
+o3	1173	922	557
+o4	1031	781	743
+o5	1192	210	1073
+o6	809	899	985
+o7	1052	229	783
+
+
+
+Table COFW(k, c) Concentration of Contaminant c on FreshWater k
+	C1	C2	C3
+w1	4	5	9
+w2	7	8	1
+w3	7	3	1
+w4	6	4	9   ;
+
+
+
+Parameters
+FLIM(i) Limiting Flowrate Water in Operation i (in th-1)
+          /   o1  54 ,   o2  174 ,   o3  226 ,   o4  68 ,   o5  100   /
+
+
+
+$onempty
+PFIN(i) Parameter for inlet streams (in th-1)
+          /   o6  95 ,   o7  50   /
+
+
+PFOUT(i) Parameter for outlet streams (in th-1)
+          /   o6  55 ,   o7  80   /  ;
